@@ -123,7 +123,8 @@ function createTables() {
       usdToOld        REAL DEFAULT 0,
       taxRate         REAL DEFAULT 0,
       taxAmount       REAL DEFAULT 0,
-      note            TEXT DEFAULT ''
+      note            TEXT DEFAULT '',
+      paymentStatus   TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS sales_lines (
@@ -152,7 +153,8 @@ function createTables() {
       shippingAccount     TEXT DEFAULT '',
       currency            TEXT DEFAULT 'USD',
       usdToOld            REAL DEFAULT 0,
-      note                TEXT DEFAULT ''
+      note                TEXT DEFAULT '',
+      paymentStatus       TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS purchase_lines (
@@ -194,6 +196,7 @@ function createTables() {
       chequeNum    TEXT DEFAULT '',
       description  TEXT DEFAULT '',
       discountOnPayment REAL DEFAULT 0,
+      linkedInvoice TEXT DEFAULT '',
       note         TEXT,
       date         TEXT
     );
@@ -206,6 +209,8 @@ function createTables() {
       paymentMethod TEXT DEFAULT 'cash',
       chequeNum    TEXT DEFAULT '',
       description  TEXT DEFAULT '',
+      discountOnPayment REAL DEFAULT 0,
+      linkedInvoice TEXT DEFAULT '',
       note         TEXT,
       date         TEXT
     );
@@ -270,6 +275,12 @@ function migrateSchema() {
     { table: 'supplier_payments', column: 'paymentMethod', def: "TEXT DEFAULT 'cash'" },
     { table: 'supplier_payments', column: 'chequeNum',     def: "TEXT DEFAULT ''" },
     { table: 'supplier_payments', column: 'description',   def: "TEXT DEFAULT ''" },
+    // linked invoice + closed-status persistence (fixes restart losing linked payments / paid status)
+    { table: 'customer_payments', column: 'linkedInvoice',     def: "TEXT DEFAULT ''" },
+    { table: 'supplier_payments', column: 'linkedInvoice',     def: "TEXT DEFAULT ''" },
+    { table: 'supplier_payments', column: 'discountOnPayment', def: "REAL DEFAULT 0" },
+    { table: 'sales_invoices',    column: 'paymentStatus',     def: "TEXT DEFAULT ''" },
+    { table: 'purchase_invoices', column: 'paymentStatus',     def: "TEXT DEFAULT ''" },
     // customers / suppliers — رصيد
     { table: 'customers', column: 'balance', def: "REAL DEFAULT 0" },
     { table: 'suppliers', column: 'balance', def: "REAL DEFAULT 0" },
@@ -430,10 +441,10 @@ function saveAll(data) {
     const insSaleInv = db.prepare(`
       INSERT INTO sales_invoices
         (number, date, time, customerName, subtotal, discount, total, paidAmount,
-         paymentType, priceType, currency, usdToOld, taxRate, taxAmount, note)
+         paymentType, priceType, currency, usdToOld, taxRate, taxAmount, note, paymentStatus)
       VALUES
         (@number, @date, @time, @customerName, @subtotal, @discount, @total, @paidAmount,
-         @paymentType, @priceType, @currency, @usdToOld, @taxRate, @taxAmount, @note)
+         @paymentType, @priceType, @currency, @usdToOld, @taxRate, @taxAmount, @note, @paymentStatus)
     `);
     const insSaleLine = db.prepare(`
       INSERT INTO sales_lines (invoiceNumber, itemId, qty, price, total, unitType, note)
@@ -449,7 +460,8 @@ function saveAll(data) {
         priceType: inv.priceType || 'retail',
         currency: inv.currency || 'USD', usdToOld: inv.usdToOld || 0,
         taxRate: inv.taxRate || 0, taxAmount: inv.taxAmount || 0,
-        note: inv.note || ''
+        note: inv.note || '',
+        paymentStatus: inv.paymentStatus || ''
       });
       (inv.lines || []).forEach(l => insSaleLine.run({
         invoiceNumber: inv.number, itemId: l.itemId || '',
@@ -464,10 +476,10 @@ function saveAll(data) {
     const insPurInv = db.prepare(`
       INSERT INTO purchase_invoices
         (number, date, time, supplierName, supplierInvoiceNum, subtotal, discount, total,
-         paidAmount, paymentType, shippingCost, shippingAccount, currency, usdToOld, note)
+         paidAmount, paymentType, shippingCost, shippingAccount, currency, usdToOld, note, paymentStatus)
       VALUES
         (@number, @date, @time, @supplierName, @supplierInvoiceNum, @subtotal, @discount, @total,
-         @paidAmount, @paymentType, @shippingCost, @shippingAccount, @currency, @usdToOld, @note)
+         @paidAmount, @paymentType, @shippingCost, @shippingAccount, @currency, @usdToOld, @note, @paymentStatus)
     `);
     const insPurLine = db.prepare(`
       INSERT INTO purchase_lines (invoiceNumber, itemId, qty, price, total, unitType, note)
@@ -484,7 +496,8 @@ function saveAll(data) {
         shippingCost: inv.shippingCost || 0,
         shippingAccount: inv.shippingAccount || '',
         currency: inv.currency || 'USD', usdToOld: inv.usdToOld || 0,
-        note: inv.note || ''
+        note: inv.note || '',
+        paymentStatus: inv.paymentStatus || ''
       });
       (inv.lines || []).forEach(l => insPurLine.run({
         invoiceNumber: inv.number, itemId: l.itemId || '',
@@ -507,14 +520,15 @@ function saveAll(data) {
     db.prepare('DELETE FROM customer_payments').run();
     const insCusPay = db.prepare(`
       INSERT INTO customer_payments
-        (receiptNum, customerName, amount, paymentMethod, chequeNum, description, discountOnPayment, note, date)
-      VALUES (@receiptNum, @customerName, @amount, @paymentMethod, @chequeNum, @description, @discountOnPayment, @note, @date)
+        (receiptNum, customerName, amount, paymentMethod, chequeNum, description, discountOnPayment, linkedInvoice, note, date)
+      VALUES (@receiptNum, @customerName, @amount, @paymentMethod, @chequeNum, @description, @discountOnPayment, @linkedInvoice, @note, @date)
     `);
     (data.customerPayments || []).forEach(p => insCusPay.run({
       receiptNum: p.receiptNum || '', customerName: p.customerName || '',
       amount: p.amount || 0, paymentMethod: p.paymentMethod || 'cash',
       chequeNum: p.chequeNum || '', description: p.description || '',
       discountOnPayment: p.discountOnPayment || 0,
+      linkedInvoice: p.linkedInvoice || '',
       note: p.note || '', date: p.date || ''
     }));
 
@@ -522,13 +536,15 @@ function saveAll(data) {
     db.prepare('DELETE FROM supplier_payments').run();
     const insSupPay = db.prepare(`
       INSERT INTO supplier_payments
-        (receiptNum, supplierName, amount, paymentMethod, chequeNum, description, note, date)
-      VALUES (@receiptNum, @supplierName, @amount, @paymentMethod, @chequeNum, @description, @note, @date)
+        (receiptNum, supplierName, amount, paymentMethod, chequeNum, description, discountOnPayment, linkedInvoice, note, date)
+      VALUES (@receiptNum, @supplierName, @amount, @paymentMethod, @chequeNum, @description, @discountOnPayment, @linkedInvoice, @note, @date)
     `);
     (data.supplierPayments || []).forEach(p => insSupPay.run({
       receiptNum: p.receiptNum || '', supplierName: p.supplierName || '',
       amount: p.amount || 0, paymentMethod: p.paymentMethod || 'cash',
       chequeNum: p.chequeNum || '', description: p.description || '',
+      discountOnPayment: p.discountOnPayment || 0,
+      linkedInvoice: p.linkedInvoice || '',
       note: p.note || '', date: p.date || ''
     }));
   });
