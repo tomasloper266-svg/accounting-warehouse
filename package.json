@@ -1,0 +1,72 @@
+{
+  "name": "accounting-warehouse",
+  "version": "2.0.0",
+  "description": "برنامج المحاسبة والمستودعات",
+  "main": "main.js",
+  "author": "AMAhmoud",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.accounting.warehouse",
+    "productName": "AccountingWarehouse",
+    "copyright": "Copyright 2026",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "icon.ico",
+      "main.js",
+      "db.js",
+      "index.html",
+      "preload.js",
+      "app.js",
+      "styles.css",
+      "theme.js",
+      "logo.png",
+      "node_modules/**/*",
+      "!src/**/*",
+      "!dist/**/*",
+      "!*.md",
+      "!*.lock"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": false,
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "المحاسبة والمستودعات",
+      "runAfterFinish": false,
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico"
+    },
+    "compression": "maximum",
+    "icon": "icon.ico"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  }
+}

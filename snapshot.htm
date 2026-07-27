@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html class="light" lang="ar" dir="rtl"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"><script data-hosted-proxy="url-rewriter">
+(function() {
+  // Target proxy URL - all matching requests will be rewritten to this base
+  var PROXY_BASE = "https://02mavqcjm6-8081.hosted.obvious.ai";
+  
+  // Regex to match E2B sandbox URLs: https://PORT-sandboxid.e2b.app or .e2b.dev
+  var E2B_URL_PATTERN = /https?:\/\/(\d+)-[a-z0-9]+\.e2b\.(app|dev)/gi;
+  
+  // Regex to match localhost URLs: http://localhost:PORT or http://127.0.0.1:PORT
+  var LOCALHOST_URL_PATTERN = /https?:\/\/(localhost|127\.0\.0\.1):(\d+)/gi;
+
+  /**
+   * Rewrite a URL if it matches our patterns and port.
+   * Only rewrites URLs that match port 8081 to avoid breaking other services.
+   */
+  function rewriteUrl(url) {
+    if (typeof url !== "string") return url;
+    
+    // Extract port from URL to check if it matches our target port
+    var portMatch = url.match(/:(\d+)/);
+    if (portMatch && parseInt(portMatch[1]) === 8081) {
+      // Replace E2B and localhost URLs with our proxy URL
+      return url.replace(E2B_URL_PATTERN, PROXY_BASE).replace(LOCALHOST_URL_PATTERN, PROXY_BASE);
+    }
+    return url;
+  }
+
+  // === Monkeypatch fetch() ===
+  var originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === "string") {
+      input = rewriteUrl(input);
+    } else if (input instanceof Request) {
+      var newUrl = rewriteUrl(input.url);
+      if (newUrl !== input.url) {
+        input = new Request(newUrl, input);
+      }
+    }
+    return originalFetch.call(this, input, init);
+  };
+
+  // === Monkeypatch XMLHttpRequest.open() ===
+  var originalXhrOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    arguments[1] = rewriteUrl(url);
+    return originalXhrOpen.apply(this, arguments);
+  };
+
+  // === Intercept form submissions ===
+  document.addEventListener("submit", function(event) {
+    var form = event.target;
+    if (form.tagName === "FORM" && form.action) {
+      form.action = rewriteUrl(form.action);
+    }
+  }, true); // Use capture phase to intercept before other handlers
+
+})();
+</script><script data-hosted-proxy="url-rewriter">
+(function() {
+  // Target proxy URL - all matching requests will be rewritten to this base
+  var PROXY_BASE = "https://0p7w2yujh9-8080.hosted.obvious.ai";
+  
+  // Regex to match E2B sandbox URLs: https://PORT-sandboxid.e2b.app or .e2b.dev
+  var E2B_URL_PATTERN = /https?:\/\/(\d+)-[a-z0-9]+\.e2b\.(app|dev)/gi;
+  
+  // Regex to match localhost URLs: http://localhost:PORT or http://127.0.0.1:PORT
+  var LOCALHOST_URL_PATTERN = /https?:\/\/(localhost|127\.0\.0\.1):(\d+)/gi;
+
+  /**
+   * Rewrite a URL if it matches our patterns and port.
+   * Only rewrites URLs that match port 8080 to avoid breaking other services.
+   */
+  function rewriteUrl(url) {
+    if (typeof url !== "string") return url;
+    
+    // Extract port from URL to check if it matches our target port
+    var portMatch = url.match(/:(\d+)/);
+    if (portMatch && parseInt(portMatch[1]) === 8080) {
+      // Replace E2B and localhost URLs with our proxy URL
+      return url.replace(E2B_URL_PATTERN, PROXY_BASE).replace(LOCALHOST_URL_PATTERN, PROXY_BASE);
+    }
+    return url;
+  }
+
+  // === Monkeypatch fetch() ===
+  var originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === "string") {
+      input = rewriteUrl(input);
+    } else if (input instanceof Request) {
+      var newUrl = rewriteUrl(input.url);
+      if (newUrl !== input.url) {
+        input = new Request(newUrl, input);
+      }
+    }
+    return originalFetch.call(this, input, init);
+  };
+
+  // === Monkeypatch XMLHttpRequest.open() ===
+  var originalXhrOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    arguments[1] = rewriteUrl(url);
+    return originalXhrOpen.apply(this, arguments);
+  };
+
+  // === Intercept form submissions ===
+  document.addEventListener("submit", function(event) {
+    var form = event.target;
+    if (form.tagName === "FORM" && form.action) {
+      form.action = rewriteUrl(form.action);
+    }
+  }, true); // Use capture phase to intercept before other handlers
+
+})();
+</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>برنامج المحاسبة والمستودعات</title>
+  <link rel="manifest" href="https://02mavqcjm6-8081.hosted.obvious.ai/manifest.json">
+  <meta name="theme-color" content="#1e40af">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="https://02mavqcjm6-8081.hosted.obvious.ai/icon-192.png">
+  <script>
+    if('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(() => {
+          console.log('PWA ready');
+        });
+      });
+    }
+  </script>
+  <link rel="stylesheet" href="%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D8%AC%20%D8%A7%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D8%A9%20%D9%88%D8%A7%D9%84%D9%85%D8%B3%D8%AA%D9%88%D8%AF%D8%B9%D8%A7%D8%AA_files/styles.css">
+  <style>
+    * { font-family: 'Segoe UI','Tahoma','Arial',sans-serif; }
+    body { background:var(--surface-base); color:var(--text-primary); min-height:100vh; margin:0; }
+
+    /* LAYOUT */
+    .layout { display:flex; min-height:100vh; }
+    .sidebar {
+      width:220px; min-height:100vh;
+      background:var(--surface-primary);
+      box-shadow:var(--shadow-lifted-card);
+      display:flex; flex-direction:column;
+      position:fixed; right:0; top:0; bottom:0; z-index:100;
+    }
+    .sidebar-logo { padding:var(--space-6) var(--space-4); border-bottom:1px solid var(--border-subtle); }
+    .sidebar-logo .company { font-size:16px; font-weight:700; color:var(--text-primary); }
+    .sidebar-logo .subtitle { font-size:11px; color:var(--text-muted); margin-top:2px; }
+    .nav-group { padding:var(--space-3) var(--space-2); flex:1; overflow-y:auto; }
+    .nav-label { font-size:10px; font-weight:600; color:var(--text-muted); padding:var(--space-2); text-transform:uppercase; letter-spacing:0.5px; margin-top:var(--space-3); }
+    .nav-item {
+      display:flex; align-items:center; gap:var(--space-3);
+      padding:var(--space-2) var(--space-3); border-radius:var(--radius-md);
+      cursor:pointer; font-size:14px; font-weight:500; color:var(--text-secondary);
+      transition:all var(--transition-fast); margin-bottom:2px;
+    }
+    .nav-item:hover { background:var(--surface-hover); color:var(--text-primary); }
+    .nav-item.active { background:var(--button-primary-bg); color:var(--text-inverse); }
+    .nav-item .icon { font-size:16px; width:20px; text-align:center; }
+    .sidebar-footer { padding:var(--space-3) var(--space-2); border-top:1px solid var(--border-subtle); }
+
+    /* MAIN */
+    .main { margin-right:220px; flex:1; padding:var(--space-6); min-height:100vh; }
+    .page-header { margin-bottom:var(--space-6); }
+    .page-title { font-size:22px; font-weight:700; }
+    .page-subtitle { font-size:13px; color:var(--text-muted); margin-top:4px; }
+
+    /* KPI */
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--space-4); margin-bottom:var(--space-6); }
+    .kpi-card {
+      background:var(--surface-primary); box-shadow:var(--shadow-lifted-card);
+      border-radius:var(--radius-lg); padding:var(--space-5);
+      position:relative; overflow:hidden;
+    }
+    .kpi-card::before { content:''; position:absolute; top:0; right:0; width:4px; height:100%; border-radius:0 var(--radius-lg) var(--radius-lg) 0; }
+    .kpi-card.blue::before { background:var(--blue-800); }
+    .kpi-card.green::before { background:var(--green-600); }
+    .kpi-card.teal::before { background:#14b8a6; }
+    .kpi-card.orange::before { background:var(--orange-600); }
+    .kpi-icon { position:absolute; top:var(--space-4); left:var(--space-4); font-size:28px; opacity:0.12; }
+    .kpi-label { font-size:12px; color:var(--text-muted); font-weight:500; margin-bottom:var(--space-2); }
+    .kpi-value { font-size:18px; font-weight:700; }
+    .kpi-sub { font-size:12px; color:var(--text-muted); margin-top:var(--space-1); }
+
+    /* GRID */
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); }
+    .card { background:var(--surface-primary); box-shadow:var(--shadow-lifted-card); border-radius:var(--radius-lg); padding:var(--space-5); }
+    .card-title { font-size:14px; font-weight:600; margin-bottom:var(--space-4); display:flex; align-items:center; gap:var(--space-2); }
+
+    /* ROWS */
+    .alert-row, .invoice-row {
+      display:flex; align-items:center; gap:var(--space-3);
+      padding:var(--space-2) var(--space-1); border-bottom:1px solid var(--border-subtle); font-size:13px;
+    }
+    .alert-row:last-child, .invoice-row:last-child { border-bottom:none; }
+    .item-id { font-size:11px; background:var(--surface-secondary); padding:2px 6px; border-radius:var(--radius-sm); color:var(--text-muted); font-weight:600; white-space:nowrap; }
+    .item-name { flex:1; }
+    .stock-badge { font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600; white-space:nowrap; }
+    .badge-error { background:var(--state-error-bg); color:var(--state-error-fg); }
+    .badge-warning { background:var(--state-warning-bg); color:var(--state-warning-fg); }
+    .inv-num { font-weight:600; font-size:12px; color:var(--blue-link); min-width:80px; }
+    .inv-customer { flex:1; color:var(--text-secondary); }
+    .inv-type { font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600; }
+    .type-sale { background:var(--state-success-bg); color:var(--state-success-fg); }
+    .type-purchase { background:var(--blue-100); color:var(--blue-link); }
+    .inv-total { font-weight:600; font-size:13px; white-space:nowrap; }
+    .inv-date { font-size:11px; color:var(--text-muted); white-space:nowrap; }
+    .empty-state { text-align:center; padding:var(--space-6); color:var(--text-muted); font-size:13px; }
+
+    /* INVOICE FORM */
+    .invoice-header {
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--space-4);
+      background:var(--surface-primary); box-shadow:var(--shadow-lifted-card);
+      border-radius:var(--radius-lg); padding:var(--space-5); margin-bottom:var(--space-4);
+    }
+    .form-group { display:flex; flex-direction:column; gap:var(--space-1); }
+    .form-label { font-size:12px; font-weight:600; color:var(--text-muted); }
+    .inv-number-badge {
+      background:var(--blue-100); color:var(--blue-link);
+      font-size:15px; font-weight:700; padding:var(--space-2) var(--space-3);
+      border-radius:var(--radius-md); display:inline-block;
+    }
+    .invoice-table-wrap { background:var(--surface-primary); box-shadow:var(--shadow-lifted-card); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:var(--space-4); }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:var(--surface-secondary); padding:var(--space-3); font-size:12px; font-weight:600; color:var(--text-muted); text-align:right; border-bottom:1px solid var(--border-default); }
+    tbody td { padding:var(--space-2) var(--space-3); border-bottom:1px solid var(--border-subtle); font-size:13px; vertical-align:middle; }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr:hover { background:var(--surface-hover); }
+    .row-warning { background:var(--state-warning-bg) !important; }
+    .invoice-totals {
+      background:var(--surface-primary); box-shadow:var(--shadow-lifted-card);
+      border-radius:var(--radius-lg); padding:var(--space-5);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .total-label { font-size:13px; color:var(--text-muted); }
+    .total-value { font-size:22px; font-weight:700; }
+    .subtotal-line { font-size:13px; color:var(--text-muted); }
+
+    /* INPUTS */
+    .input {
+      background:var(--surface-secondary); border:1px solid var(--border-default);
+      border-radius:var(--radius-md); padding:var(--space-2) var(--space-3);
+      font-size:13px; color:var(--text-primary); outline:none; width:100%;
+      transition:border var(--transition-fast); font-family:inherit;
+    }
+    .input:focus { border-color:var(--border-focus); box-shadow:0 0 0 2px rgba(41,162,255,0.15); }
+    .input-sm { padding:4px var(--space-2); font-size:12px; }
+    select.input { cursor:pointer; }
+
+    /* ITEMS */
+    .toolbar { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4); }
+    .toolbar .input { max-width:280px; }
+    .stock-num { font-weight:700; font-size:14px; }
+    .stock-ok { color:var(--green-700); }
+    .stock-low { color:var(--red-700); }
+    .min-stock { font-size:11px; color:var(--text-muted); }
+    .badge { background:var(--surface-secondary); color:var(--text-secondary); font-size:11px; padding:2px 8px; border-radius:999px; font-weight:500; }
+    .price-display { color:var(--text-secondary); }
+
+    /* MODAL */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; display:flex; align-items:center; justify-content:center; }
+    .modal-overlay.hidden { display:none !important; }
+    .modal { background:var(--surface-primary); border-radius:var(--radius-xl); padding:var(--space-6); width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.15); }
+    .modal-title { font-size:16px; font-weight:700; margin-bottom:var(--space-5); }
+    .modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-5); }
+    .modal-actions { display:flex; gap:var(--space-3); justify-content:flex-end; }
+
+    /* SETTINGS */
+    .settings-card { background:var(--surface-primary); box-shadow:var(--shadow-lifted-card); border-radius:var(--radius-lg); padding:var(--space-6); max-width:560px; }
+    .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); margin-bottom:var(--space-5); }
+
+    /* BUTTONS */
+    .btn { display:inline-flex; align-items:center; gap:var(--space-2); padding:var(--space-2) var(--space-4); border-radius:var(--radius-md); font-size:13px; font-weight:500; cursor:pointer; border:none; transition:all var(--transition-fast); font-family:inherit; }
+    .btn-primary { background:var(--button-primary-bg); color:var(--text-inverse); }
+    .btn-primary:hover { background:var(--button-primary-hover); }
+    .btn-secondary { background:var(--surface-secondary); color:var(--text-primary); box-shadow:var(--shadow-lifted); }
+    .btn-secondary:hover { background:var(--surface-hover); }
+    .btn-success { background:var(--green-700); color:white; }
+    .btn-success:hover { background:var(--green-800); }
+    .btn-danger { background:var(--red-600); color:white; }
+    .btn-danger:hover { background:var(--red-700); }
+    .btn-ghost { background:transparent; color:var(--text-secondary); }
+    .btn-ghost:hover { background:var(--surface-hover); }
+    .btn-sm { padding:4px var(--space-3); font-size:12px; }
+    .btn-lg { padding:var(--space-3) var(--space-6); font-size:15px; }
+
+    /* TOAST */
+    .toast { position:fixed; bottom:var(--space-6); left:50%; transform:translateX(-50%) translateY(80px); background:var(--neutral-1100); color:white; padding:var(--space-3) var(--space-5); border-radius:var(--radius-lg); font-size:14px; font-weight:500; z-index:999; opacity:0; transition:all 0.3s; pointer-events:none; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .toast.toast-success { background:var(--green-700); }
+    .toast.toast-error { background:var(--red-700); }
+
+    .hidden { display:none !important; }
+    .flex { display:flex; }
+    .items-center { align-items:center; }
+    .gap-3 { gap:var(--space-3); }
+    .mt-4 { margin-top:var(--space-4); }
+    .text-muted { color:var(--text-muted); }
+    .tag-auto { font-size:10px; color:var(--green-700); margin-right:4px; }
+    .inv-link { font-size:12px; font-weight:600; color:var(--blue-link); cursor:pointer; padding:2px 6px; background:var(--blue-100); border-radius:var(--radius-sm); margin:1px; display:inline-block; }
+    .inv-link:hover { background:var(--blue-200); }
+    .detail-modal { background:var(--surface-primary); border-radius:var(--radius-xl); padding:var(--space-6); width:700px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+    .detail-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-5); padding-bottom:var(--space-4); border-bottom:1px solid var(--border-subtle); }
+    .detail-meta { display:grid; grid-template-columns:1fr 1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-4); }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="company" id="company-name-header" style="display:flex;align-items:center;gap:8px">شركتي</div>
+      <div class="subtitle">نظام إدارة متكامل</div>
+    </div>
+    <nav class="nav-group">
+      <div class="nav-label">الرئيسية</div>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <span class="icon">📊</span> لوحة التحكم
+      </div>
+      <div class="nav-label">الفواتير</div>
+      <div class="nav-item" data-page="invoice-sale" onclick="navigate('invoice-sale')">
+        <span class="icon">🧾</span> فاتورة البيع
+      </div>
+      <div class="nav-item" data-page="invoice-purchase" onclick="navigate('invoice-purchase')">
+        <span class="icon">🛒</span> فاتورة الشراء
+      </div>
+      <div class="nav-label">الإدارة</div>
+      <div class="nav-item" data-page="items" onclick="navigate('items')">
+        <span class="icon">📦</span> دليل المواد
+      </div>
+      <div class="nav-item" data-page="customers" onclick="navigate('customers')">
+        <span class="icon">👥</span> الزبائن
+      </div>
+      <div class="nav-label">النظام</div>
+      <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+        <span class="icon">⚙️</span> الإعدادات
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="theme-toggle btn btn-ghost btn-sm" style="width:100%">
+        <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="icon-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        الوضع الليلي
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3)">
+        <div>
+          <div class="page-title">📊 لوحة التحكم</div>
+          <div class="page-subtitle">ملخص سريع لنشاط شركتك</div>
+        </div>
+        <!-- ويجت سعر الصرف -->
+        <div style="background:var(--surface-primary);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);box-shadow:var(--shadow-lifted-card);display:flex;align-items:center;gap:var(--space-4);flex-wrap:wrap">
+          <div style="font-size:12px;color:var(--text-muted);font-weight:600">💱 سعر الصرف اليوم</div>
+          <div style="display:flex;align-items:center;gap:var(--space-2)">
+            <span style="font-size:12px;color:var(--text-muted)">$1 =</span>
+            <input id="rate-quick-input" type="number" class="input input-sm" style="width:100px" placeholder="12000" onchange="saveQuickRate()" value="1000">
+            <span style="font-size:12px;color:var(--text-muted)">ل.س ق</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-secondary)">
+            = <strong id="rate-widget-new">١٠</strong> ل.س ج
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveQuickRate()">✓ حفظ</button>
+        </div>
+      </div>
+      <div style="width:100%;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:var(--space-6);box-shadow:var(--shadow-lifted-card);max-height:220px;">
+        <img src="%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D8%AC%20%D8%A7%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D8%A9%20%D9%88%D8%A7%D9%84%D9%85%D8%B3%D8%AA%D9%88%D8%AF%D8%B9%D8%A7%D8%AA_files/fl_u1ReiWaN.png" alt="برنامج المحاسبة والمستودعات" style="width:100%;height:220px;object-fit:cover;display:block;">
+      </div>
+
+      <div class="card">
+        <div class="card-title">🕐 آخر الفواتير</div>
+        <div id="recent-invoices"><div class="empty-state">لا توجد فواتير بعد</div></div>
+      </div>
+    </div>
+
+
+    <!-- SALE INVOICE -->
+    <div id="page-invoice-sale" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">🧾 فاتورة البيع</div>
+          <div class="page-subtitle">إنشاء فاتورة بيع جديدة</div>
+        </div>
+        <span class="inv-number-badge" id="sale-inv-num">INV-001</span>
+      </div>
+
+      <!-- KPI mini cards -->
+      <div style="margin-bottom:var(--space-5)">
+        <div class="kpi-card blue" style="max-width:280px">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">إجمالي المبيعات</div>
+          <div class="kpi-value" id="sale-kpi-sales">0 ل.س</div>
+          <div class="kpi-sub" id="sale-kpi-sales-count">0 فاتورة</div>
+        </div>
+      </div>
+      <div class="invoice-header">
+        <div class="form-group">
+          <label class="form-label">التاريخ</label>
+          <input type="date" id="sale-date" class="input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">اسم الزبون <span class="tag-auto">✦ يُضاف تلقائياً</span></label>
+          <input type="text" id="sale-customer-input" class="input" placeholder="اكتب اسم الزبون..." list="customers-datalist" autocomplete="off">
+          <datalist id="customers-datalist"></datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">الخصم %</label>
+          <input type="number" id="sale-discount" class="input" value="0" min="0" max="100" onchange="renderSaleTotal()">
+        </div>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>المادة</th>
+              <th style="width:80px">الوحدة</th>
+              <th style="width:90px">الكمية</th>
+              <th style="width:120px">السعر</th>
+              <th style="width:130px">الإجمالي</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody id="sale-lines"></tbody>
+        </table>
+      </div>
+      <div class="flex gap-3 mt-4" style="margin-bottom:var(--space-4)">
+        <button class="btn btn-secondary" onclick="addSaleLine()">+ إضافة سطر</button>
+      </div>
+      <div class="invoice-totals">
+        <div>
+          <div class="subtotal-line">المجموع: <strong id="sale-subtotal">0</strong></div>
+          <div class="total-label">الإجمالي النهائي</div>
+          <div class="total-value"><span id="sale-total">0</span></div>
+          <div id="sale-total-equiv" style="margin-top:var(--space-1)"></div>
+        </div>
+        <div class="flex gap-3">
+          <button class="btn btn-secondary btn-lg" onclick="printCurrentInvoice()">🖨️ طباعة / PDF</button>
+          <button class="btn btn-success btn-lg" onclick="saveSaleInvoice()">💾 حفظ الفاتورة</button>
+        </div>
+      </div>
+
+      <!-- آخر الفواتير -->
+      <div class="card" style="margin-top:var(--space-5)">
+        <div class="card-title">🕐 آخر الفواتير</div>
+        <div id="sale-recent-invoices"><div class="empty-state">لا توجد فواتير بعد</div></div>
+      </div>
+    </div>
+
+    <!-- PURCHASE INVOICE -->
+    <div id="page-invoice-purchase" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">🛒 فاتورة الشراء</div>
+          <div class="page-subtitle">تسجيل مشتريات جديدة</div>
+        </div>
+        <span class="inv-number-badge" style="background:var(--green-100);color:var(--green-800)" id="pur-inv-num">PUR-001</span>
+      </div>
+      <div class="invoice-header">
+        <div class="form-group">
+          <label class="form-label">التاريخ</label>
+          <input type="date" id="pur-date" class="input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">المورد <span class="tag-auto">✦ يُضاف تلقائياً</span></label>
+          <input type="text" id="pur-supplier-input" class="input" placeholder="اكتب اسم المورد..." list="suppliers-datalist" autocomplete="off">
+          <datalist id="suppliers-datalist"></datalist>
+        </div>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>المادة</th>
+              <th style="width:80px">الوحدة</th>
+              <th style="width:90px">الكمية</th>
+              <th style="width:130px">سعر الشراء</th>
+              <th style="width:130px">الإجمالي</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody id="pur-lines"></tbody>
+        </table>
+      </div>
+      <div class="flex gap-3 mt-4" style="margin-bottom:var(--space-4)">
+        <button class="btn btn-secondary" onclick="addPurLine()">+ إضافة سطر</button>
+      </div>
+      <div class="invoice-totals">
+        <div>
+          <div class="total-label">إجمالي الفاتورة</div>
+          <div class="total-value"><span id="pur-total">0</span></div>
+          <div id="pur-total-equiv" style="margin-top:var(--space-1)"></div>
+        </div>
+        <button class="btn btn-success btn-lg" onclick="savePurchaseInvoice()">💾 حفظ الفاتورة</button>
+      </div>
+    </div>
+
+    <!-- ITEMS -->
+    <div id="page-items" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">📦 دليل المواد</div>
+          <div class="page-subtitle" id="items-count"></div>
+        </div>
+        <button class="btn btn-primary" onclick="addNewItem()">+ إضافة مادة</button>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="items-search" class="input" placeholder="🔍 بحث عن مادة..." oninput="renderItems()">
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>الرقم</th>
+              <th>اسم المادة</th>
+              <th>الصنف</th>
+              <th>الوحدة</th>
+              <th>سعر التكلفة ($)</th>
+              <th>سعر البيع ($)</th>
+              <th>المخزون</th>
+              <th style="width:80px">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div id="page-customers" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">👥 سجل الزبائن</div>
+          <div class="page-subtitle">يُضاف الزبون تلقائياً عند إنشاء فاتورة بيع</div>
+        </div>
+        <button class="btn btn-primary" onclick="addCustomer()">+ زبون جديد</button>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:80px">الرقم</th>
+              <th>اسم الزبون</th>
+              <th>الهاتف</th>
+              <th>العنوان</th>
+              <th>إجمالي المبيعات</th>
+              <th>الفواتير</th>
+            </tr>
+          </thead>
+          <tbody id="customers-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="hidden">
+      <div class="page-header">
+        <div class="page-title">⚙️ إعدادات الشركة</div>
+        <div class="page-subtitle">بيانات شركتك تظهر في الفواتير</div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">اسم الشركة</label>
+            <input id="set-name" class="input" type="text" placeholder="اسم شركتك">
+          </div>
+          <div class="form-group">
+            <label class="form-label">العنوان</label>
+            <input id="set-address" class="input" type="text" placeholder="العنوان">
+          </div>
+          <div class="form-group">
+            <label class="form-label">الهاتف</label>
+            <input id="set-phone" class="input" type="text" placeholder="رقم الهاتف">
+          </div>
+          <div class="form-group">
+            <label class="form-label">البريد الإلكتروني</label>
+            <input id="set-email" class="input" type="email" placeholder="email@example.com">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-5)">
+          <label class="form-label">شعار / رسالة ترحيب</label>
+          <input id="set-slogan" class="input" type="text" placeholder="نشكر ثقتكم بنا">
+        </div>
+        <div style="background:var(--surface-secondary);border-radius:var(--radius-lg);padding:var(--space-4);margin-bottom:var(--space-5)">
+          <div style="font-size:13px;font-weight:700;margin-bottom:var(--space-3);color:var(--text-primary)">💱 إعدادات العملات وسعر الصرف</div>
+          <div class="settings-grid" style="margin-bottom:0">
+            <div class="form-group">
+              <label class="form-label">سعر الدولار بالليرة السورية القديمة</label>
+              <input id="set-usd-rate" class="input" type="number" placeholder="12000" min="1">
+              <span style="font-size:11px;color:var(--text-muted);margin-top:4px">مثال: 12000 يعني $1 = 12,000 ل.س ق = 120 ل.س ج</span>
+            </div>
+            <div class="form-group" style="display:flex;flex-direction:column;justify-content:center;gap:var(--space-2)">
+              <div style="font-size:12px;color:var(--text-muted)">📌 قاعدة التحويل الثابتة:</div>
+              <div style="font-size:13px;font-weight:600">1 ل.س جديدة = 100 ل.س قديمة</div>
+              <div style="font-size:12px;color:var(--text-muted)">جميع أسعار المواد تُدخل بالدولار</div>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-3">
+          <button class="btn btn-success btn-lg" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+          <button class="btn btn-danger" onclick="resetData()">🔄 إعادة تعيين (يحتفظ بالمواد)</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="modal-overlay hidden" id="item-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-title">✏️ تعديل المادة</div>
+    <input type="hidden" id="modal-item-id">
+
+    <!-- الاسم والصنف -->
+    <div class="modal-grid" style="margin-bottom:var(--space-3)">
+      <div class="form-group" style="grid-column:span 2">
+        <label class="form-label">اسم المادة</label>
+        <input id="modal-item-name" class="input" type="text">
+      </div>
+      <div class="form-group">
+        <label class="form-label">الصنف</label>
+        <input id="modal-item-type" class="input" type="text">
+      </div>
+    </div>
+
+    <!-- الوحدات -->
+    <div style="background:var(--surface-secondary);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-3)">
+      <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:var(--space-2)">📦 الوحدات</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-2)">
+        <div class="form-group">
+          <label class="form-label">الوحدة الأساسية</label>
+          <input id="modal-item-unit" class="input input-sm" type="text" placeholder="مثال: كيس">
+        </div>
+        <div class="form-group">
+          <label class="form-label">الوحدة الثانية</label>
+          <input id="modal-item-unit2" class="input input-sm" type="text" placeholder="مثال: طن">
+        </div>
+        <div class="form-group">
+          <label class="form-label">عامل التحويل</label>
+          <input id="modal-item-factor" class="input input-sm" type="number" min="0.001" step="any" placeholder="مثال: 20">
+          <span style="font-size:10px;color:var(--text-muted)">1 وحدة ثانية = X وحدة أساسية</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- العملة والأسعار -->
+    <div style="background:var(--surface-secondary);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-4)">
+      <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:var(--space-2)">💱 السعر</div>
+      <div style="margin-bottom:var(--space-2)">
+        <label class="form-label">عملة الإدخال</label>
+        <select id="modal-price-currency" class="input input-sm" style="max-width:180px" onchange="updateModalCurrencyLabel()">
+          <option value="USD" selected="selected">دولار ($)</option>
+          <option value="NEW">ل.س جديدة</option>
+          <option value="OLD">ل.س قديمة</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)">
+        <div class="form-group">
+          <label class="form-label">سعر التكلفة (<span class="modal-cur-label">$</span>)</label>
+          <input id="modal-item-cost" class="input input-sm" type="number" min="0" step="any">
+        </div>
+        <div class="form-group">
+          <label class="form-label">سعر البيع (<span class="modal-cur-label">$</span>)</label>
+          <input id="modal-item-price" class="input input-sm" type="number" min="0" step="any">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('item-modal').classList.add('hidden')">إلغاء</button>
+      <button class="btn btn-success" onclick="saveItemModal()">💾 حفظ</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- INVOICE DETAIL MODAL -->
+<div class="modal-overlay hidden" id="invoice-detail-modal">
+  <div class="detail-modal">
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;gap:var(--space-3)">
+        <span id="detail-inv-type" class="inv-type type-sale">🧾 فاتورة بيع</span>
+        <span class="inv-number-badge" id="detail-inv-number">INV-001</span>
+      </div>
+      <div style="display:flex;gap:var(--space-2)">
+        <button class="btn btn-secondary btn-sm" onclick="printDetailInvoice()">🖨️ طباعة</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeDetailModal()">✕</button>
+      </div>
+    </div>
+
+    <!-- Meta -->
+    <div class="detail-meta">
+      <div class="form-group">
+        <label class="form-label">التاريخ</label>
+        <input type="date" id="detail-date" class="input">
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="detail-party-label">اسم الزبون</label>
+        <input type="text" id="detail-party" class="input" placeholder="اسم الزبون / المورد">
+      </div>
+      <div class="form-group" id="detail-discount-row">
+        <label class="form-label">الخصم %</label>
+        <input type="number" id="detail-discount" class="input" value="0" min="0" max="100" onchange="_calcDetailTotal(true)">
+      </div>
+    </div>
+
+    <!-- Lines table -->
+    <div class="invoice-table-wrap" style="margin-bottom:var(--space-3)">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px">#</th>
+            <th>المادة</th>
+            <th style="width:70px">الوحدة</th>
+            <th style="width:80px">الكمية</th>
+            <th style="width:110px">السعر</th>
+            <th style="width:120px">الإجمالي</th>
+            <th style="width:40px"></th>
+          </tr>
+        </thead>
+        <tbody id="detail-lines"></tbody>
+      </table>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="addDetailLine()" style="margin-bottom:var(--space-4)">+ إضافة سطر</button>
+
+    <!-- Totals + actions -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-top:var(--space-4);border-top:1px solid var(--border-subtle)">
+      <div>
+        <div style="font-size:13px;color:var(--text-muted)">المجموع: <strong id="detail-subtotal">0</strong> ل.س</div>
+        <div style="font-size:18px;font-weight:700;margin-top:4px">الإجمالي: <span id="detail-total">0</span> ل.س</div>
+      </div>
+      <div style="display:flex;gap:var(--space-3)">
+        <button class="btn btn-secondary" onclick="closeDetailModal()">إلغاء</button>
+        <button class="btn btn-success" onclick="saveInvoiceDetail()">💾 حفظ التعديلات</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D8%AC%20%D8%A7%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D8%A9%20%D9%88%D8%A7%D9%84%D9%85%D8%B3%D8%AA%D9%88%D8%AF%D8%B9%D8%A7%D8%AA_files/theme.js"></script>
+<script src="%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D8%AC%20%D8%A7%D9%84%D9%85%D8%AD%D8%A7%D8%B3%D8%A8%D8%A9%20%D9%88%D8%A7%D9%84%D9%85%D8%B3%D8%AA%D9%88%D8%AF%D8%B9%D8%A7%D8%AA_files/app.js"></script>
+<script data-obvious-badge="">
+(function() {
+  // Only show badge if NOT in iframe (external access only)
+  if (window.self === window.top) {
+    // Create badge as clickable link
+    var badge = document.createElement('a');
+    badge.href = 'https://obvious.ai/';
+    badge.target = '_blank';
+    badge.rel = 'noopener noreferrer';
+
+    // Apply fixed positioning styles inline (works even if app overrides CSS)
+    badge.style.cssText = 'position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(255, 255, 255, 0.95); border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; color: rgba(0, 0, 0, 0.72); text-decoration: none; opacity: 0.6; z-index: 9999; transition: opacity 0.2s; cursor: pointer;';
+
+    badge.innerHTML = '\x3csvg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 22 20\" width=\"16\" height=\"16\"\x3e\n  \x3cpath fill=\"currentColor\" fill-opacity=\".92\" fill-rule=\"evenodd\" d=\"M10.94.68c.04.02.08.02.12 0a5.08 5.08 0 0 1 5.15.04 5.38 5.38 0 0 1 2.6 4.57c0 .04.03.08.06.1A5.39 5.39 0 0 1 21.42 10a5.39 5.39 0 0 1-2.55 4.6.12.12 0 0 0-.06.1 5.38 5.38 0 0 1-2.6 4.58c-1.65.98-3.6.93-5.15.04a.12.12 0 0 0-.12 0c-1.55.89-3.5.94-5.15-.04a5.38 5.38 0 0 1-2.6-4.57.12.12 0 0 0-.06-.1A5.39 5.39 0 0 1 .58 10a5.39 5.39 0 0 1 2.55-4.6.12.12 0 0 0 .06-.1c.02-1.84.95-3.6 2.6-4.58a5.08 5.08 0 0 1 5.15-.04ZM8.4 14.85c0-.1-.1-.15-.18-.1a5.07 5.07 0 0 1-3.33.53.12.12 0 0 0-.14.13 3.83 3.83 0 0 0 1.79 2.55c.95.56 2.05.65 3.03.31.07-.02.1-.12.04-.18a5.4 5.4 0 0 1-1.21-3.24Zm5.38-.1c-.08-.05-.18 0-.18.1a5.45 5.45 0 0 1-1.21 3.24c-.06.06-.03.16.04.18.98.34 2.08.25 3.03-.31a3.81 3.81 0 0 0 1.79-2.55.12.12 0 0 0-.14-.13 5.1 5.1 0 0 1-3.33-.54Zm-2.7-2.76a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3Zm-1.71-.93a.11.11 0 0 0-.08-.14 3.68 3.68 0 0 0-4.47 2.66c-.02.06.02.12.08.14a3.74 3.74 0 0 0 4.47-2.65Zm7.46 1.67a3.68 3.68 0 0 0-4.12-1.8.11.11 0 0 0-.08.13 3.74 3.74 0 0 0 4.47 2.66c.06-.02.1-.08.08-.14a3.9 3.9 0 0 0-.35-.85Zm1.85-5.59a.11.11 0 0 0-.18.05 5.46 5.46 0 0 1-2.12 2.7.13.13 0 0 0 0 .22 5.27 5.27 0 0 1 2.12 2.7c.03.08.12.1.18.05A3.87 3.87 0 0 0 19.93 10c0-1.14-.48-2.16-1.25-2.86ZM3.5 7.19a.11.11 0 0 0-.18-.05A3.87 3.87 0 0 0 2.07 10c0 1.14.48 2.16 1.25 2.86.06.05.15.03.18-.05a5.47 5.47 0 0 1 2.12-2.7.13.13 0 0 0 0-.22A5.27 5.27 0 0 1 3.5 7.2Zm2.3-1.02c-.32 0-.61.04-.9.11a.11.11 0 0 0-.08.14A3.68 3.68 0 0 0 9.3 9.07c.06 0 .1-.07.08-.13A3.74 3.74 0 0 0 5.8 6.17Zm10.4 0a3.74 3.74 0 0 0-3.57 2.77c-.01.06.02.12.08.14a3.68 3.68 0 0 0 4.47-2.66.11.11 0 0 0-.08-.14 3.63 3.63 0 0 0-.9-.1Zm-5.12-3.46a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3ZM9.6 1.9c.06-.06.03-.16-.04-.18a3.62 3.62 0 0 0-3.03.31A3.81 3.81 0 0 0 4.75 4.6c-.01.08.06.15.14.13a5.1 5.1 0 0 1 3.33.54c.08.04.18-.02.18-.1A5.45 5.45 0 0 1 9.6 1.9Zm5.85.13a3.62 3.62 0 0 0-3.03-.31c-.07.02-.1.12-.04.18a5.4 5.4 0 0 1 1.21 3.24c0 .1.1.15.18.1a5.07 5.07 0 0 1 3.33-.53c.08.02.15-.05.14-.13a3.81 3.81 0 0 0-1.79-2.55Z\" clip-rule=\"evenodd\"/\x3e\n\x3c/svg\x3e <span>Created with Obvious</span>';
+
+    // Hover effect
+    badge.onmouseenter = function() { badge.style.opacity = '0.9'; };
+    badge.onmouseleave = function() { badge.style.opacity = '0.6'; };
+
+    // Inject on DOM ready
+    if (document.body) {
+      document.body.appendChild(badge);
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        document.body.appendChild(badge);
+      });
+    }
+  }
+})();
+</script><a href="https://obvious.ai/" target="_blank" rel="noopener noreferrer" style="position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(255, 255, 255, 0.95); border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 8px; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; color: rgba(0, 0, 0, 0.72); text-decoration: none; opacity: 0.6; z-index: 9999; transition: opacity 0.2s; cursor: pointer;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 22 20" width="16" height="16">
+  <path fill="currentColor" fill-opacity=".92" fill-rule="evenodd" d="M10.94.68c.04.02.08.02.12 0a5.08 5.08 0 0 1 5.15.04 5.38 5.38 0 0 1 2.6 4.57c0 .04.03.08.06.1A5.39 5.39 0 0 1 21.42 10a5.39 5.39 0 0 1-2.55 4.6.12.12 0 0 0-.06.1 5.38 5.38 0 0 1-2.6 4.58c-1.65.98-3.6.93-5.15.04a.12.12 0 0 0-.12 0c-1.55.89-3.5.94-5.15-.04a5.38 5.38 0 0 1-2.6-4.57.12.12 0 0 0-.06-.1A5.39 5.39 0 0 1 .58 10a5.39 5.39 0 0 1 2.55-4.6.12.12 0 0 0 .06-.1c.02-1.84.95-3.6 2.6-4.58a5.08 5.08 0 0 1 5.15-.04ZM8.4 14.85c0-.1-.1-.15-.18-.1a5.07 5.07 0 0 1-3.33.53.12.12 0 0 0-.14.13 3.83 3.83 0 0 0 1.79 2.55c.95.56 2.05.65 3.03.31.07-.02.1-.12.04-.18a5.4 5.4 0 0 1-1.21-3.24Zm5.38-.1c-.08-.05-.18 0-.18.1a5.45 5.45 0 0 1-1.21 3.24c-.06.06-.03.16.04.18.98.34 2.08.25 3.03-.31a3.81 3.81 0 0 0 1.79-2.55.12.12 0 0 0-.14-.13 5.1 5.1 0 0 1-3.33-.54Zm-2.7-2.76a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3Zm-1.71-.93a.11.11 0 0 0-.08-.14 3.68 3.68 0 0 0-4.47 2.66c-.02.06.02.12.08.14a3.74 3.74 0 0 0 4.47-2.65Zm7.46 1.67a3.68 3.68 0 0 0-4.12-1.8.11.11 0 0 0-.08.13 3.74 3.74 0 0 0 4.47 2.66c.06-.02.1-.08.08-.14a3.9 3.9 0 0 0-.35-.85Zm1.85-5.59a.11.11 0 0 0-.18.05 5.46 5.46 0 0 1-2.12 2.7.13.13 0 0 0 0 .22 5.27 5.27 0 0 1 2.12 2.7c.03.08.12.1.18.05A3.87 3.87 0 0 0 19.93 10c0-1.14-.48-2.16-1.25-2.86ZM3.5 7.19a.11.11 0 0 0-.18-.05A3.87 3.87 0 0 0 2.07 10c0 1.14.48 2.16 1.25 2.86.06.05.15.03.18-.05a5.47 5.47 0 0 1 2.12-2.7.13.13 0 0 0 0-.22A5.27 5.27 0 0 1 3.5 7.2Zm2.3-1.02c-.32 0-.61.04-.9.11a.11.11 0 0 0-.08.14A3.68 3.68 0 0 0 9.3 9.07c.06 0 .1-.07.08-.13A3.74 3.74 0 0 0 5.8 6.17Zm10.4 0a3.74 3.74 0 0 0-3.57 2.77c-.01.06.02.12.08.14a3.68 3.68 0 0 0 4.47-2.66.11.11 0 0 0-.08-.14 3.63 3.63 0 0 0-.9-.1Zm-5.12-3.46a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3ZM9.6 1.9c.06-.06.03-.16-.04-.18a3.62 3.62 0 0 0-3.03.31A3.81 3.81 0 0 0 4.75 4.6c-.01.08.06.15.14.13a5.1 5.1 0 0 1 3.33.54c.08.04.18-.02.18-.1A5.45 5.45 0 0 1 9.6 1.9Zm5.85.13a3.62 3.62 0 0 0-3.03-.31c-.07.02-.1.12-.04.18a5.4 5.4 0 0 1 1.21 3.24c0 .1.1.15.18.1a5.07 5.07 0 0 1 3.33-.53c.08.02.15-.05.14-.13a3.81 3.81 0 0 0-1.79-2.55Z" clip-rule="evenodd"></path>
+</svg> <span>Created with Obvious</span></a><script data-obvious-analytics="">
+(function(){
+  // Config from server
+  var T="eyJyZXNvdXJjZVR5cGUiOiJob3N0ZWRfYXBwIiwicmVzb3VyY2VJZCI6InByal9LQ1pCa3k1TiIsImlhdCI6MTc4MDQwMTE2MzEzN30.bBb5Cb3yLf5g3OBdnn7o6-6cFp6rXc0JpxUDOJ9K4gA",R="hosted_app",I="prj_KCZBky5N",E="https://api.app.obvious.ai/prepare/a/e";
+
+  // For hosted apps: skip analytics when in an iframe (internal dashboard view)
+  // Direct access (window.self === window.top) is tracked, iframe embeds are not
+  if(R==="hosted_app"&&window.self!==window.top)return;
+
+  // Generate or retrieve visitor ID (cross-session, localStorage)
+  function gV(){
+    try{
+      var v=localStorage.getItem("_oa_v");
+      if(!v){v=rI();localStorage.setItem("_oa_v",v)}
+      return v
+    }catch(e){return rI()}
+  }
+
+  // Generate or retrieve session ID (per-tab, sessionStorage)
+  function gS(){
+    try{
+      var s=sessionStorage.getItem("_oa_s");
+      if(!s){s=rI();sessionStorage.setItem("_oa_s",s)}
+      return s
+    }catch(e){return rI()}
+  }
+
+  // Random ID generator (simple, no crypto dependency)
+  function rI(){
+    return "xxxxxxxxxxxx".replace(/x/g,function(){
+      return(Math.random()*16|0).toString(16)
+    })+Date.now().toString(36)
+  }
+
+  // Parse user agent for device info
+  function dI(){
+    var ua=navigator.userAgent||"";
+    var d="desktop",b="other",o="other";
+    
+    // Device type
+    if(/Mobile|Android.*Mobile|iPhone|iPod/.test(ua))d="mobile";
+    else if(/iPad|Android(?!.*Mobile)|Tablet/.test(ua))d="tablet";
+    
+    // Browser - lowercase for consistency
+    if(/Firefox\//.test(ua))b="firefox";
+    else if(/Edg\//.test(ua))b="edge";
+    else if(/Chrome\//.test(ua))b="chrome";
+    else if(/Safari\//.test(ua)&&!/Chrome/.test(ua))b="safari";
+    
+    // OS - lowercase for consistency
+    if(/Windows/.test(ua))o="windows";
+    else if(/Mac OS/.test(ua))o="macos";
+    else if(/Linux/.test(ua))o="linux";
+    else if(/Android/.test(ua))o="android";
+    else if(/iOS|iPhone|iPad/.test(ua))o="ios";
+    
+    return{deviceType:d,browser:b,os:o}
+  }
+
+  // Send event to server
+  function sE(t,n,d,dur){
+    var di=dI();
+    var p={
+      token:T,
+      resourceType:R,
+      resourceId:I,
+      eventType:t,
+      visitorId:gV(),
+      sessionId:gS(),
+      path:location.pathname,
+      referrer:document.referrer||undefined,
+      deviceType:di.deviceType,
+      browser:di.browser,
+      os:di.os
+    };
+    if(n)p.eventName=n;
+    if(d)p.eventData=d;
+    if(dur)p.duration=dur;
+
+    // Always use fetch with keepalive for reliable delivery during page unload
+    // (sendBeacon has CORS issues - it always sends credentials)
+    fetch(E,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(p),
+      keepalive:true,
+      mode:"cors",
+      credentials:"omit"
+    }).catch(function(e){if(console&&console.warn)console.warn("[OA] Event failed:",e)})
+  }
+
+  // Track page view on load
+  var st=Date.now();
+  var lS=false; // Guard to prevent duplicate page_leave events
+  sE("page_view");
+
+  // Track page leave with duration (guarded to prevent duplicates)
+  function oL(){
+    if(lS)return;
+    lS=true;
+    sE("page_leave",null,null,Date.now()-st)
+  }
+  
+  // Use multiple events for better coverage
+  window.addEventListener("pagehide",oL);
+  window.addEventListener("beforeunload",oL);
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="hidden")oL()
+  });
+
+  // SPA navigation support (for hosted apps)
+  var lp=location.pathname;
+  function cN(){
+    if(location.pathname!==lp){
+      oL(); // Send leave for old page
+      lp=location.pathname;
+      st=Date.now();
+      lS=false; // Reset guard for new page
+      sE("page_view"); // Send view for new page
+    }
+  }
+  
+  // Listen for navigation events
+  window.addEventListener("popstate",cN);
+  
+  // Intercept pushState/replaceState for SPA navigation
+  var oPS=history.pushState,oRS=history.replaceState;
+  history.pushState=function(){oPS.apply(this,arguments);cN()};
+  history.replaceState=function(){oRS.apply(this,arguments);cN()};
+
+  // Expose custom event tracking (optional)
+  window.__oa={
+    track:function(name,data){sE("custom",name,data)}
+  };
+})();
+</script><script data-obvious-badge="">
+(function() {
+  // Only show badge if NOT in iframe (external access only)
+  if (window.self === window.top) {
+    // Create badge as clickable link
+    var badge = document.createElement('a');
+    badge.href = 'https://obvious.ai/';
+    badge.target = '_blank';
+    badge.rel = 'noopener noreferrer';
+
+    // Apply fixed positioning styles inline (works even if app overrides CSS)
+    badge.style.cssText = 'position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(255, 255, 255, 0.95); border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; color: rgba(0, 0, 0, 0.72); text-decoration: none; opacity: 0.6; z-index: 9999; transition: opacity 0.2s; cursor: pointer;';
+
+    badge.innerHTML = '\x3csvg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 22 20\" width=\"16\" height=\"16\"\x3e\n  \x3cpath fill=\"currentColor\" fill-opacity=\".92\" fill-rule=\"evenodd\" d=\"M10.94.68c.04.02.08.02.12 0a5.08 5.08 0 0 1 5.15.04 5.38 5.38 0 0 1 2.6 4.57c0 .04.03.08.06.1A5.39 5.39 0 0 1 21.42 10a5.39 5.39 0 0 1-2.55 4.6.12.12 0 0 0-.06.1 5.38 5.38 0 0 1-2.6 4.58c-1.65.98-3.6.93-5.15.04a.12.12 0 0 0-.12 0c-1.55.89-3.5.94-5.15-.04a5.38 5.38 0 0 1-2.6-4.57.12.12 0 0 0-.06-.1A5.39 5.39 0 0 1 .58 10a5.39 5.39 0 0 1 2.55-4.6.12.12 0 0 0 .06-.1c.02-1.84.95-3.6 2.6-4.58a5.08 5.08 0 0 1 5.15-.04ZM8.4 14.85c0-.1-.1-.15-.18-.1a5.07 5.07 0 0 1-3.33.53.12.12 0 0 0-.14.13 3.83 3.83 0 0 0 1.79 2.55c.95.56 2.05.65 3.03.31.07-.02.1-.12.04-.18a5.4 5.4 0 0 1-1.21-3.24Zm5.38-.1c-.08-.05-.18 0-.18.1a5.45 5.45 0 0 1-1.21 3.24c-.06.06-.03.16.04.18.98.34 2.08.25 3.03-.31a3.81 3.81 0 0 0 1.79-2.55.12.12 0 0 0-.14-.13 5.1 5.1 0 0 1-3.33-.54Zm-2.7-2.76a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3Zm-1.71-.93a.11.11 0 0 0-.08-.14 3.68 3.68 0 0 0-4.47 2.66c-.02.06.02.12.08.14a3.74 3.74 0 0 0 4.47-2.65Zm7.46 1.67a3.68 3.68 0 0 0-4.12-1.8.11.11 0 0 0-.08.13 3.74 3.74 0 0 0 4.47 2.66c.06-.02.1-.08.08-.14a3.9 3.9 0 0 0-.35-.85Zm1.85-5.59a.11.11 0 0 0-.18.05 5.46 5.46 0 0 1-2.12 2.7.13.13 0 0 0 0 .22 5.27 5.27 0 0 1 2.12 2.7c.03.08.12.1.18.05A3.87 3.87 0 0 0 19.93 10c0-1.14-.48-2.16-1.25-2.86ZM3.5 7.19a.11.11 0 0 0-.18-.05A3.87 3.87 0 0 0 2.07 10c0 1.14.48 2.16 1.25 2.86.06.05.15.03.18-.05a5.47 5.47 0 0 1 2.12-2.7.13.13 0 0 0 0-.22A5.27 5.27 0 0 1 3.5 7.2Zm2.3-1.02c-.32 0-.61.04-.9.11a.11.11 0 0 0-.08.14A3.68 3.68 0 0 0 9.3 9.07c.06 0 .1-.07.08-.13A3.74 3.74 0 0 0 5.8 6.17Zm10.4 0a3.74 3.74 0 0 0-3.57 2.77c-.01.06.02.12.08.14a3.68 3.68 0 0 0 4.47-2.66.11.11 0 0 0-.08-.14 3.63 3.63 0 0 0-.9-.1Zm-5.12-3.46a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3ZM9.6 1.9c.06-.06.03-.16-.04-.18a3.62 3.62 0 0 0-3.03.31A3.81 3.81 0 0 0 4.75 4.6c-.01.08.06.15.14.13a5.1 5.1 0 0 1 3.33.54c.08.04.18-.02.18-.1A5.45 5.45 0 0 1 9.6 1.9Zm5.85.13a3.62 3.62 0 0 0-3.03-.31c-.07.02-.1.12-.04.18a5.4 5.4 0 0 1 1.21 3.24c0 .1.1.15.18.1a5.07 5.07 0 0 1 3.33-.53c.08.02.15-.05.14-.13a3.81 3.81 0 0 0-1.79-2.55Z\" clip-rule=\"evenodd\"/\x3e\n\x3c/svg\x3e <span>Created with Obvious</span>';
+
+    // Hover effect
+    badge.onmouseenter = function() { badge.style.opacity = '0.9'; };
+    badge.onmouseleave = function() { badge.style.opacity = '0.6'; };
+
+    // Inject on DOM ready
+    if (document.body) {
+      document.body.appendChild(badge);
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        document.body.appendChild(badge);
+      });
+    }
+  }
+})();
+</script><a href="https://obvious.ai/" target="_blank" rel="noopener noreferrer" style="position: fixed; bottom: 16px; right: 16px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(255, 255, 255, 0.95); border-radius: 6px; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 8px; font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; color: rgba(0, 0, 0, 0.72); text-decoration: none; opacity: 0.6; z-index: 9999; transition: opacity 0.2s; cursor: pointer;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 22 20" width="16" height="16">
+  <path fill="currentColor" fill-opacity=".92" fill-rule="evenodd" d="M10.94.68c.04.02.08.02.12 0a5.08 5.08 0 0 1 5.15.04 5.38 5.38 0 0 1 2.6 4.57c0 .04.03.08.06.1A5.39 5.39 0 0 1 21.42 10a5.39 5.39 0 0 1-2.55 4.6.12.12 0 0 0-.06.1 5.38 5.38 0 0 1-2.6 4.58c-1.65.98-3.6.93-5.15.04a.12.12 0 0 0-.12 0c-1.55.89-3.5.94-5.15-.04a5.38 5.38 0 0 1-2.6-4.57.12.12 0 0 0-.06-.1A5.39 5.39 0 0 1 .58 10a5.39 5.39 0 0 1 2.55-4.6.12.12 0 0 0 .06-.1c.02-1.84.95-3.6 2.6-4.58a5.08 5.08 0 0 1 5.15-.04ZM8.4 14.85c0-.1-.1-.15-.18-.1a5.07 5.07 0 0 1-3.33.53.12.12 0 0 0-.14.13 3.83 3.83 0 0 0 1.79 2.55c.95.56 2.05.65 3.03.31.07-.02.1-.12.04-.18a5.4 5.4 0 0 1-1.21-3.24Zm5.38-.1c-.08-.05-.18 0-.18.1a5.45 5.45 0 0 1-1.21 3.24c-.06.06-.03.16.04.18.98.34 2.08.25 3.03-.31a3.81 3.81 0 0 0 1.79-2.55.12.12 0 0 0-.14-.13 5.1 5.1 0 0 1-3.33-.54Zm-2.7-2.76a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3Zm-1.71-.93a.11.11 0 0 0-.08-.14 3.68 3.68 0 0 0-4.47 2.66c-.02.06.02.12.08.14a3.74 3.74 0 0 0 4.47-2.65Zm7.46 1.67a3.68 3.68 0 0 0-4.12-1.8.11.11 0 0 0-.08.13 3.74 3.74 0 0 0 4.47 2.66c.06-.02.1-.08.08-.14a3.9 3.9 0 0 0-.35-.85Zm1.85-5.59a.11.11 0 0 0-.18.05 5.46 5.46 0 0 1-2.12 2.7.13.13 0 0 0 0 .22 5.27 5.27 0 0 1 2.12 2.7c.03.08.12.1.18.05A3.87 3.87 0 0 0 19.93 10c0-1.14-.48-2.16-1.25-2.86ZM3.5 7.19a.11.11 0 0 0-.18-.05A3.87 3.87 0 0 0 2.07 10c0 1.14.48 2.16 1.25 2.86.06.05.15.03.18-.05a5.47 5.47 0 0 1 2.12-2.7.13.13 0 0 0 0-.22A5.27 5.27 0 0 1 3.5 7.2Zm2.3-1.02c-.32 0-.61.04-.9.11a.11.11 0 0 0-.08.14A3.68 3.68 0 0 0 9.3 9.07c.06 0 .1-.07.08-.13A3.74 3.74 0 0 0 5.8 6.17Zm10.4 0a3.74 3.74 0 0 0-3.57 2.77c-.01.06.02.12.08.14a3.68 3.68 0 0 0 4.47-2.66.11.11 0 0 0-.08-.14 3.63 3.63 0 0 0-.9-.1Zm-5.12-3.46a.1.1 0 0 0-.16 0 3.91 3.91 0 0 0 0 5.3.1.1 0 0 0 .16 0 3.91 3.91 0 0 0 0-5.3ZM9.6 1.9c.06-.06.03-.16-.04-.18a3.62 3.62 0 0 0-3.03.31A3.81 3.81 0 0 0 4.75 4.6c-.01.08.06.15.14.13a5.1 5.1 0 0 1 3.33.54c.08.04.18-.02.18-.1A5.45 5.45 0 0 1 9.6 1.9Zm5.85.13a3.62 3.62 0 0 0-3.03-.31c-.07.02-.1.12-.04.18a5.4 5.4 0 0 1 1.21 3.24c0 .1.1.15.18.1a5.07 5.07 0 0 1 3.33-.53c.08.02.15-.05.14-.13a3.81 3.81 0 0 0-1.79-2.55Z" clip-rule="evenodd"></path>
+</svg> <span>Created with Obvious</span></a><script data-obvious-analytics="">
+(function(){
+  // Config from server
+  var T="eyJyZXNvdXJjZVR5cGUiOiJob3N0ZWRfYXBwIiwicmVzb3VyY2VJZCI6InByal8yNjZRUWRINCIsImlhdCI6MTc4MDQwNjE0NTAzNH0.ANPBZ_imOH8f_5RJ9oqe0EO8QRjl82KHPn5uG66oT8c",R="hosted_app",I="prj_266QQdH4",E="https://api.app.obvious.ai/prepare/a/e";
+
+  // For hosted apps: skip analytics when in an iframe (internal dashboard view)
+  // Direct access (window.self === window.top) is tracked, iframe embeds are not
+  if(R==="hosted_app"&&window.self!==window.top)return;
+
+  // Generate or retrieve visitor ID (cross-session, localStorage)
+  function gV(){
+    try{
+      var v=localStorage.getItem("_oa_v");
+      if(!v){v=rI();localStorage.setItem("_oa_v",v)}
+      return v
+    }catch(e){return rI()}
+  }
+
+  // Generate or retrieve session ID (per-tab, sessionStorage)
+  function gS(){
+    try{
+      var s=sessionStorage.getItem("_oa_s");
+      if(!s){s=rI();sessionStorage.setItem("_oa_s",s)}
+      return s
+    }catch(e){return rI()}
+  }
+
+  // Random ID generator (simple, no crypto dependency)
+  function rI(){
+    return "xxxxxxxxxxxx".replace(/x/g,function(){
+      return(Math.random()*16|0).toString(16)
+    })+Date.now().toString(36)
+  }
+
+  // Parse user agent for device info
+  function dI(){
+    var ua=navigator.userAgent||"";
+    var d="desktop",b="other",o="other";
+    
+    // Device type
+    if(/Mobile|Android.*Mobile|iPhone|iPod/.test(ua))d="mobile";
+    else if(/iPad|Android(?!.*Mobile)|Tablet/.test(ua))d="tablet";
+    
+    // Browser - lowercase for consistency
+    if(/Firefox\//.test(ua))b="firefox";
+    else if(/Edg\//.test(ua))b="edge";
+    else if(/Chrome\//.test(ua))b="chrome";
+    else if(/Safari\//.test(ua)&&!/Chrome/.test(ua))b="safari";
+    
+    // OS - lowercase for consistency
+    if(/Windows/.test(ua))o="windows";
+    else if(/Mac OS/.test(ua))o="macos";
+    else if(/Linux/.test(ua))o="linux";
+    else if(/Android/.test(ua))o="android";
+    else if(/iOS|iPhone|iPad/.test(ua))o="ios";
+    
+    return{deviceType:d,browser:b,os:o}
+  }
+
+  // Send event to server
+  function sE(t,n,d,dur){
+    var di=dI();
+    var p={
+      token:T,
+      resourceType:R,
+      resourceId:I,
+      eventType:t,
+      visitorId:gV(),
+      sessionId:gS(),
+      path:location.pathname,
+      referrer:document.referrer||undefined,
+      deviceType:di.deviceType,
+      browser:di.browser,
+      os:di.os
+    };
+    if(n)p.eventName=n;
+    if(d)p.eventData=d;
+    if(dur)p.duration=dur;
+
+    // Always use fetch with keepalive for reliable delivery during page unload
+    // (sendBeacon has CORS issues - it always sends credentials)
+    fetch(E,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(p),
+      keepalive:true,
+      mode:"cors",
+      credentials:"omit"
+    }).catch(function(e){if(console&&console.warn)console.warn("[OA] Event failed:",e)})
+  }
+
+  // Track page view on load
+  var st=Date.now();
+  var lS=false; // Guard to prevent duplicate page_leave events
+  sE("page_view");
+
+  // Track page leave with duration (guarded to prevent duplicates)
+  function oL(){
+    if(lS)return;
+    lS=true;
+    sE("page_leave",null,null,Date.now()-st)
+  }
+  
+  // Use multiple events for better coverage
+  window.addEventListener("pagehide",oL);
+  window.addEventListener("beforeunload",oL);
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="hidden")oL()
+  });
+
+  // SPA navigation support (for hosted apps)
+  var lp=location.pathname;
+  function cN(){
+    if(location.pathname!==lp){
+      oL(); // Send leave for old page
+      lp=location.pathname;
+      st=Date.now();
+      lS=false; // Reset guard for new page
+      sE("page_view"); // Send view for new page
+    }
+  }
+  
+  // Listen for navigation events
+  window.addEventListener("popstate",cN);
+  
+  // Intercept pushState/replaceState for SPA navigation
+  var oPS=history.pushState,oRS=history.replaceState;
+  history.pushState=function(){oPS.apply(this,arguments);cN()};
+  history.replaceState=function(){oRS.apply(this,arguments);cN()};
+
+  // Expose custom event tracking (optional)
+  window.__oa={
+    track:function(name,data){sE("custom",name,data)}
+  };
+})();
+</script>
+
+</body></html>

@@ -1,0 +1,47 @@
+name: Build Windows App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows EXE
+        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload EXE as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AccountingWarehouse-Windows-Setup
+          path: dist/*.exe
+          retention-days: 90
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: "برنامج المحاسبة - إصدار ${{ github.run_number }}"
+          body: "نزّل الملف .exe وشغّله مباشرة على Windows — ما في تثبيت معقد"
+          files: dist/*.exe
+          draft: false
+          prerelease: false
