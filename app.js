@@ -1356,10 +1356,10 @@ function renderSuppliers() {
     const sAcc = getSupplierAccount(s.name);
     const sRemColor = sAcc.remaining > 0 ? 'var(--red-600)' : 'var(--green-700)';
     return '<tr>' +
-      '<td><span class="item-id">' + String(i+1).padStart(3,'0') + '</span></td>' +
-      '<td style="font-weight:600">' + s.name + '</td>' +
-      '<td>' + (s.phone||'—') + '</td>' +
-      '<td>' + (s.address||'—') + '</td>' +
+      '<td><span class="item-id">' + (s.id || String(i+1).padStart(3,'0')) + '</span></td>' +
+      '<td><input class="input input-sm" value="' + (s.name||'') + '" onchange="updateSupplier(' + i + ',\'name\',this.value)" placeholder="اسم المورد"></td>' +
+      '<td><input class="input input-sm" value="' + (s.phone||'') + '" onchange="updateSupplier(' + i + ',\'phone\',this.value)" placeholder="الهاتف"></td>' +
+      '<td><input class="input input-sm" value="' + (s.address||'') + '" onchange="updateSupplier(' + i + ',\'address\',this.value)" placeholder="العنوان"></td>' +
       '<td style="font-weight:700;color:var(--blue-link)">' + fmtUSD(sAcc.totalInvoices) + '</td>' +
       '<td style="font-weight:700;color:var(--green-700)">' + fmtUSD(sAcc.totalPaid) + '</td>' +
       '<td style="font-weight:700;color:' + sRemColor + '">' + fmtUSD(sAcc.remaining) + '</td>' +
@@ -1369,16 +1369,18 @@ function renderSuppliers() {
 }
 
 function addSupplier() {
-  const name = prompt('اسم المورد:');
-  if (!name || !name.trim()) return;
   if (!db.suppliers) db.suppliers = [];
-  if (db.suppliers.find(function(s){ return s.name === name.trim(); })) {
-    showToast('المورد موجود مسبقاً', 'error'); return;
-  }
-  db.suppliers.push({ name: name.trim(), phone: '', address: '' });
+  const newId = 'SUP-' + String(db.suppliers.length + 1).padStart(3, '0');
+  db.suppliers.push({ id: newId, name: '', phone: '', address: '', balance: 0 });
   saveData(db);
   renderSuppliers();
-  showToast('✅ تم إضافة المورد');
+  showToast('✅ تمت إضافة مورد جديد — أدخل بياناته');
+}
+
+function updateSupplier(i, field, val) {
+  if (!db.suppliers || !db.suppliers[i]) return;
+  db.suppliers[i][field] = val;
+  saveData(db);
 }
 
 
@@ -1459,6 +1461,18 @@ function saveSettings() {
 }
 
 // ويجت سعر الصرف في لوحة التحكم
+function onRateInput(val) {
+  const rate = parseFloat(val);
+  const newEl = document.getElementById('rate-widget-new');
+  if (newEl) newEl.textContent = (rate && rate > 0)
+    ? new Intl.NumberFormat('ar-SY').format(rate / 100) + ' ل.س ج'
+    : '—';
+  if (!rate || rate < 1) return;
+  if (!db.exchange) db.exchange = {};
+  db.exchange.usdToOld = rate;
+  saveData(db);
+}
+
 function updateRateWidget() {
   if(!db.exchange) db.exchange = { usdToOld: 12000 };
   const rate = db.exchange.usdToOld;
