@@ -262,7 +262,9 @@ function getStats() {
 // نظام العملات
 // ============================================================
 function getRate() {
-  return db.exchange ? db.exchange.usdToOld : 12000;
+  // exchange.usdToOld قد يُخزَّن كنص في SQLite — نحوّله لرقم دائماً مع قيمة افتراضية آمنة
+  const r = db.exchange ? parseFloat(db.exchange.usdToOld) : NaN;
+  return (r && r > 0) ? r : 12000;
 }
 // تحويل دولار → ل.س قديمة
 function usdToOld(usd) { return usd * getRate(); }
@@ -538,6 +540,19 @@ function renderAllInvoices() {
 // ============================================================
 let saleLines = [{ itemId:'', qty:1, price:0, total:0 }];
 
+// ============================================================
+// يضمن وجود سطر فارغ في نهاية الجدول، فيتولّد سطر جديد تلقائياً
+// بمجرد إكمال السطر الحالي (اختيار مادة) دون حاجة لزر "إضافة سطر".
+// ============================================================
+function ensureTrailingBlankLine(lines) {
+  const last = lines[lines.length - 1];
+  if (!last || last.itemId) {
+    lines.push({ itemId:'', qty:1, price:0, total:0, unitType:'unit' });
+    return true;
+  }
+  return false;
+}
+
 function renderSaleInvoice() {
   const nextNum = 'INV-' + String(db.invoiceCounters.sale+1).padStart(3,'0');
   document.getElementById('sale-inv-num').textContent = nextNum;
@@ -648,11 +663,12 @@ function renderSaleLines() {
       </td>
       <td>${unitSelect}</td>
       <td style="text-align:center;">
-        <input type="number" class="input input-sm" value="${line.qty}" min="0.01" step="0.01"
+        <input type="number" id="sale-qty-${i}" class="input input-sm" value="${line.qty}" min="0.01" step="0.01"
           onchange="onSaleQtyChange(${i},this.value)" style="width:76px;text-align:center;">
       </td>
       <td style="text-align:center;">
-        <span style="font-size:13px;font-weight:700;color:var(--brand-600);">${line.price ? fmtUSD(line.price) : '<span style=\"color:var(--text-subtle)\">—</span>'}</span>
+        <input type="number" class="input input-sm" value="${line.price}" min="0" step="0.01"
+          onchange="onSalePriceChange(${i},this.value)" style="width:110px;text-align:center;">
       </td>
       <td style="text-align:center;">
         <span style="font-size:14px;font-weight:900;color:${line.total > 0 ? 'var(--text-primary)' : 'var(--text-subtle)'};">${line.total ? fmtUSD(line.total) : '—'}</span>
@@ -677,7 +693,10 @@ function onSaleItemChange(i,itemId) {
     saleLines[i].price = 0;
   }
   saleLines[i].total = saleLines[i].price * saleLines[i].qty;
+  if (itemId) ensureTrailingBlankLine(saleLines);
   renderSaleLines(); renderSaleTotal();
+  // انتقال التركيز لحقل الكمية لتسريع الإدخال
+  if (itemId) document.getElementById('sale-qty-'+i)?.focus();
 }
 
 function onSaleUnitChange(i, unitType) {
@@ -696,6 +715,13 @@ function onSaleUnitChange(i, unitType) {
 function onSaleQtyChange(i,qty) {
   saleLines[i].qty = parseFloat(qty)||0;
   saleLines[i].total = saleLines[i].price*saleLines[i].qty;
+  ensureTrailingBlankLine(saleLines);
+  renderSaleLines(); renderSaleTotal();
+}
+function onSalePriceChange(i,price) {
+  saleLines[i].price = parseFloat(price)||0;
+  saleLines[i].total = saleLines[i].price*saleLines[i].qty;
+  ensureTrailingBlankLine(saleLines);
   renderSaleLines(); renderSaleTotal();
 }
 function removeSaleLine(i) {
@@ -1021,7 +1047,7 @@ function renderPurchaseLines() {
         </select>
       </td>
       <td>${unitSelect}</td>
-      <td><input type="number" class="input input-sm" value="${line.qty}" min="0.01" step="0.01" onchange="onPurQtyChange(${i},this.value)" style="width:80px"></td>
+      <td><input type="number" id="pur-qty-${i}" class="input input-sm" value="${line.qty}" min="0.01" step="0.01" onchange="onPurQtyChange(${i},this.value)" style="width:80px"></td>
       <td><input type="number" class="input input-sm" value="${line.price}" min="0" onchange="onPurPriceChange(${i},this.value)" style="width:110px"></td>
       <td><strong>${line.total?fmtUSD(line.total):'—'}</strong></td>
       <td><button class="btn btn-ghost btn-sm" onclick="removePurLine(${i})">✕</button></td>
@@ -1035,7 +1061,9 @@ function onPurItemChange(i,itemId) {
   purchaseLines[i].unitType = 'unit';
   purchaseLines[i].price = item ? item.cost : 0;
   purchaseLines[i].total = purchaseLines[i].price * purchaseLines[i].qty;
+  if (itemId) ensureTrailingBlankLine(purchaseLines);
   renderPurchaseLines(); renderPurchaseTotal();
+  if (itemId) document.getElementById('pur-qty-'+i)?.focus();
 }
 
 function onPurUnitChange(i, unitType) {
@@ -1053,11 +1081,13 @@ function onPurUnitChange(i, unitType) {
 function onPurQtyChange(i,qty) {
   purchaseLines[i].qty=parseFloat(qty)||0;
   purchaseLines[i].total=purchaseLines[i].price*purchaseLines[i].qty;
+  ensureTrailingBlankLine(purchaseLines);
   renderPurchaseLines(); renderPurchaseTotal();
 }
 function onPurPriceChange(i,price) {
   purchaseLines[i].price=parseFloat(price)||0;
   purchaseLines[i].total=purchaseLines[i].price*purchaseLines[i].qty;
+  ensureTrailingBlankLine(purchaseLines);
   renderPurchaseLines(); renderPurchaseTotal();
 }
 function removePurLine(i) {
@@ -1067,13 +1097,20 @@ function removePurLine(i) {
 }
 function addPurLine() { purchaseLines.push({itemId:'',qty:1,price:0,total:0}); renderPurchaseLines(); }
 function renderPurchaseTotal() {
-  const total = purchaseLines.reduce((s,l)=>s+l.total,0);
-  document.getElementById('pur-total').textContent = fmtUSD(total);
+  // الإجمالي المعروض يجب أن يطابق المحفوظ: يطبّق الخصم ويضيف الشحن
+  const subtotal = purchaseLines.reduce((s,l)=>s+l.total,0);
+  const discount = parseFloat(document.getElementById('pur-discount')?.value||0);
+  const shipping = parseFloat(document.getElementById('pur-shipping')?.value||0);
+  const total = subtotal*(1-discount/100) + shipping;
+  const totalEl = document.getElementById('pur-total');
+  if(totalEl) totalEl.textContent = fmtUSD(total);
   const eqEl = document.getElementById('pur-total-equiv');
   if(eqEl) eqEl.innerHTML =
     '<span style="color:var(--text-muted);font-size:13px">' +
     fmtOld(usdToOld(total)) + ' &nbsp;|&nbsp; ' + fmtNew(usdToNew(total)) +
     '</span>';
+  const paidEl = document.getElementById('pur-paid-amount');
+  if(paidEl && !paidEl.value) paidEl.placeholder = fmtUSD(total) + ' (الكامل)';
 }
 function renderPurchaseRecentInvoices() {
   const el = document.getElementById('pur-recent-invoices');
@@ -2786,9 +2823,11 @@ function handleBarcodeScan(page, value) {
       if (priceType === 'special'   && it.price3 > 0) return it.price3;
       return it.price;
     });
+    ensureTrailingBlankLine(saleLines);
     renderSaleLines(); renderSaleTotal();
   } else if (page === 'purchase') {
     addToLines(purchaseLines, (it) => it.cost);
+    ensureTrailingBlankLine(purchaseLines);
     renderPurchaseLines(); renderPurchaseTotal();
   }
 

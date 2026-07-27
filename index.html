@@ -524,199 +524,137 @@
 
         <!-- SALE INVOICE -->
     <div id="page-invoice-sale" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">🧾 فاتورة بيع جديدة</div>
+          <div class="page-subtitle">تسجيل مبيعات جديدة</div>
+        </div>
+        <span class="inv-number-badge" id="sale-inv-num">INV-001</span>
+      </div>
 
-      <!-- ═══ HERO HEADER ═══ -->
-      <div class="section-hero hero-blue" style="margin-bottom:20px;">
-        <div class="section-hero-inner">
-          <div style="display:flex;align-items:center;gap:14px;">
-            <div class="section-hero-icon">🧾</div>
-            <div>
-              <div class="section-hero-title">فاتورة بيع جديدة</div>
-              <div class="section-hero-sub">أنشئ فاتورة بيع احترافية وأرسلها لزبونك</div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <!-- KPI mini -->
-            <div style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px 18px;text-align:center;backdrop-filter:blur(8px);">
-              <div style="font-size:11px;opacity:.75;margin-bottom:2px;">إجمالي المبيعات</div>
-              <div style="font-size:18px;font-weight:900;" id="sale-kpi-sales">$0.00</div>
-              <div style="font-size:10px;opacity:.65;" id="sale-kpi-sales-count">0 فاتورة</div>
-            </div>
-            <span style="background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.35);border-radius:10px;padding:8px 18px;font-size:16px;font-weight:900;font-family:monospace;backdrop-filter:blur(8px);" id="sale-inv-num">INV-001</span>
-          </div>
+      <!-- شريط مسح الباركود -->
+      <div class="barcode-strip">
+        <span style="font-size:20px;">📡</span>
+        <div style="flex:1;">
+          <div class="barcode-strip-label">مسح باركود أو بحث سريع بالمادة</div>
+          <input
+            id="sale-barcode-input" list="sale-barcode-datalist"
+            type="text" class="input input-sm"
+            placeholder="باركود، اسم، أو كود المادة... ثم Enter"
+            style="width:100%;max-width:380px;font-family:monospace;letter-spacing:1px;"
+            onkeydown="if(event.key==='Enter'){ handleBarcodeScan('sale', this.value); }"
+            oninput="if(this.value.length>1) updateBarcodeDatalist('sale')"
+            autocomplete="off">
+          <datalist id="sale-barcode-datalist"></datalist>
+        </div>
+        <span style="font-size:11px;color:var(--brand-700);opacity:0.7;">اضغط Enter بعد الكتابة</span>
+      </div>
+
+      <div class="invoice-header">
+        <div class="form-group">
+          <label class="form-label">التاريخ</label>
+          <input type="date" id="sale-date" class="input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">اسم الزبون <span class="tag-auto">✦ يُضاف تلقائياً</span></label>
+          <input type="text" id="sale-customer-input" class="input" placeholder="اكتب اسم الزبون..." list="customers-datalist" autocomplete="off">
+          <datalist id="customers-datalist"></datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">نوع السعر</label>
+          <select id="sale-price-type" class="input" onchange="renderSaleLines()">
+            <option value="retail">مستهلك (تجزئة)</option>
+            <option value="wholesale">جملة</option>
+            <option value="special">خاص</option>
+          </select>
         </div>
       </div>
 
-      <!-- ═══ TWO-COLUMN LAYOUT ═══ -->
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start;">
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th>المادة</th>
+              <th style="width:80px">الوحدة</th>
+              <th style="width:90px">الكمية</th>
+              <th style="width:130px">السعر</th>
+              <th style="width:130px">الإجمالي</th>
+              <th style="width:50px"></th>
+            </tr>
+          </thead>
+          <tbody id="sale-lines"></tbody>
+        </table>
+      </div>
 
-        <!-- LEFT: form + table -->
-        <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="flex gap-3 mt-4" style="margin-bottom:var(--space-4)">
+        <button class="btn btn-secondary" onclick="addSaleLine()">+ إضافة سطر</button>
+      </div>
 
-          <!-- Barcode strip -->
-          <div class="barcode-strip">
-            <span style="font-size:22px;">📡</span>
-            <div style="flex:1;">
-              <div class="barcode-strip-label">مسح باركود أو بحث سريع بالمادة</div>
-              <input id="sale-barcode-input" type="text" class="input input-sm"
-                placeholder="اكتب الباركود أو اسم المادة ثم Enter..."
-                list="sale-barcode-datalist" style="max-width:420px;"
-                onkeydown="if(event.key==='Enter'){ handleBarcodeScan('sale', this.value); }"
-                oninput="if(this.value.length>1) updateBarcodeDatalist('sale')"
-                autocomplete="off">
-              <datalist id="sale-barcode-datalist"></datalist>
-            </div>
-            <span style="font-size:11px;color:var(--brand-600);font-weight:700;opacity:.8;">Enter ↵</span>
+      <div class="invoice-totals">
+        <div>
+          <div class="total-label">إجمالي الفاتورة</div>
+          <div class="total-value"><span id="sale-total">0</span></div>
+          <div id="sale-total-equiv" style="margin-top:var(--space-1)"></div>
+          <div class="subtotal-line" style="margin-top:6px;">المجموع الجزئي: <span id="sale-subtotal">$ 0.00</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);min-width:280px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:13px;color:var(--text-muted);min-width:80px">خصم %</label>
+            <input type="number" id="sale-discount" class="input input-sm" style="width:75px" value="0" min="0" max="100" oninput="renderSaleTotal()">
+            <label style="font-size:13px;color:var(--text-muted)">ضريبة %</label>
+            <input type="number" id="sale-tax-rate" class="input input-sm" style="width:75px" value="0" min="0" oninput="renderSaleTotal()">
           </div>
-
-          <!-- Header Fields -->
-          <div class="card" style="padding:16px;">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-              <div class="form-group">
-                <label class="form-label">📅 التاريخ</label>
-                <input type="date" id="sale-date" class="input">
-              </div>
-              <div class="form-group">
-                <label class="form-label">👤 اسم الزبون <span class="tag-auto">✦ تلقائي</span></label>
-                <input type="text" id="sale-customer-input" class="input"
-                  placeholder="اكتب اسم الزبون..."
-                  list="customers-datalist" autocomplete="off">
-                <datalist id="customers-datalist"></datalist>
-              </div>
-              <div class="form-group">
-                <label class="form-label">🏷️ نوع السعر</label>
-                <select id="sale-price-type" class="input" onchange="renderSaleLines()">
-                  <option value="retail">مستهلك (تجزئة)</option>
-                  <option value="wholesale">جملة</option>
-                  <option value="special">خاص</option>
-                </select>
-              </div>
-            </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:13px;color:var(--text-muted);min-width:80px">الدفع</label>
+            <select id="sale-payment-type" class="input input-sm" style="flex:1">
+              <option value="cash">💵 نقداً</option>
+              <option value="deferred">⏳ آجل</option>
+            </select>
           </div>
-
-          <!-- Items Table -->
-          <div class="invoice-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:36px;text-align:center;">#</th>
-                  <th>المادة</th>
-                  <th style="width:100px;">الوحدة</th>
-                  <th style="width:90px;text-align:center;">الكمية</th>
-                  <th style="width:120px;text-align:center;">السعر</th>
-                  <th style="width:130px;text-align:center;">الإجمالي</th>
-                  <th style="width:44px;"></th>
-                </tr>
-              </thead>
-              <tbody id="sale-lines"></tbody>
-            </table>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:13px;color:var(--text-muted);min-width:80px">مدفوع $</label>
+            <input type="number" id="sale-paid-amount" class="input input-sm" style="flex:1" placeholder="الكامل إن فارغ" min="0" step="0.01">
           </div>
-
-          <div>
-            <button class="btn btn-outline btn-sm" onclick="addSaleLine()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              إضافة سطر
-            </button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:13px;color:var(--text-muted);min-width:80px">ملاحظة</label>
+            <input type="text" id="sale-note" class="input input-sm" style="flex:1" placeholder="ملاحظة اختيارية">
           </div>
         </div>
-
-        <!-- RIGHT: totals + payment + actions -->
-        <div style="display:flex;flex-direction:column;gap:14px;position:sticky;top:80px;">
-
-          <!-- Totals Card -->
-          <div class="card" style="padding:20px;">
-            <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">💰 الإجماليات</div>
-
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px dashed var(--border);">
-              <span style="color:var(--text-muted);font-weight:600;">المجموع الجزئي</span>
-              <span id="sale-subtotal" style="font-weight:800;">$0.00</span>
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 0;border-bottom:1px dashed var(--border);">
-              <div class="form-group">
-                <label class="form-label">خصم %</label>
-                <input type="number" id="sale-discount" class="input input-sm" value="0" min="0" max="100" onchange="renderSaleTotal()">
-              </div>
-              <div class="form-group">
-                <label class="form-label">ضريبة %</label>
-                <input type="number" id="sale-tax-rate" class="input input-sm" value="0" min="0" onchange="renderSaleTotal()">
-              </div>
-            </div>
-
-            <div style="padding:12px 0 6px;">
-              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">الإجمالي النهائي</div>
-              <div id="sale-total" style="font-size:28px;font-weight:900;color:var(--brand-600);">$0.00</div>
-              <div id="sale-total-equiv" style="margin-top:4px;font-size:12px;color:var(--text-muted);"></div>
-            </div>
-          </div>
-
-          <!-- Payment Card -->
-          <div class="card" style="padding:20px;">
-            <div style="font-size:13px;font-weight:800;color:var(--text-primary);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);">💳 بيانات الدفع</div>
-
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <div class="form-group">
-                <label class="form-label">طريقة الدفع</label>
-                <select id="sale-payment-type" class="input">
-                  <option value="cash">💵 نقداً</option>
-                  <option value="deferred">⏳ آجل</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">المبلغ المدفوع $</label>
-                <input type="number" id="sale-paid-amount" class="input" placeholder="اتركه فارغاً للدفع الكامل" min="0" step="0.01">
-              </div>
-              <div class="form-group">
-                <label class="form-label">ملاحظة</label>
-                <input type="text" id="sale-note" class="input" placeholder="ملاحظة اختيارية...">
-              </div>
-            </div>
-          </div>
-
-          <!-- Action Buttons -->
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <button class="btn btn-success btn-lg" onclick="saveSaleInvoice()" style="width:100%;font-size:15px;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              حفظ الفاتورة
-            </button>
-            <button class="btn btn-secondary" onclick="printCurrentInvoice()" style="width:100%;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-              طباعة / PDF
-            </button>
-          </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-success btn-lg" onclick="saveSaleInvoice()">💾 حفظ الفاتورة</button>
+          <button class="btn btn-secondary" onclick="printCurrentInvoice()">🖨 طباعة / PDF</button>
         </div>
       </div>
 
-      <!-- ═══ RECENT INVOICES ═══ -->
-      <div class="card" style="margin-top:20px;">
-        <div class="card-header">
-          <div class="card-title">
-            🧾 فواتير البيع السابقة
-            <span id="sale-invoices-count" class="badge badge-blue">0</span>
+      <!-- آخر فواتير البيع -->
+      <div class="card" style="margin-top:var(--space-5)">
+        <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            🧾 فواتير البيع
+            <span id="sale-invoices-count" style="font-size:11px;background:var(--surface-secondary);color:var(--text-muted);padding:2px 8px;border-radius:999px;font-weight:500;">0 فاتورة</span>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <select id="sale-pay-filter" class="input input-sm" onchange="renderSaleRecentInvoices()" style="width:130px;">
-              <option value="all">الكل</option>
-              <option value="deferred">⏳ آجلة</option>
-              <option value="cash">💵 نقدية</option>
+              <option value="all">📋 كل الفواتير</option>
+              <option value="deferred">⏳ آجلة فقط</option>
+              <option value="cash">💵 نقدية فقط</option>
             </select>
             <input type="text" id="sale-invoices-search" class="input input-sm"
-              placeholder="🔍 بحث برقم أو اسم..."
-              oninput="renderSaleRecentInvoices()" style="width:210px;">
+              placeholder="🔍 بحث برقم الفاتورة أو اسم الزبون..."
+              oninput="renderSaleRecentInvoices()"
+              style="width:210px;max-width:100%;">
           </div>
         </div>
-        <div class="inv-table-head">
-          <span style="min-width:82px;">رقم</span>
+        <div style="display:flex;align-items:center;gap:12px;padding:6px 4px;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border-subtle);margin-bottom:4px;">
+          <span style="min-width:80px;">رقم الفاتورة</span>
           <span style="flex:1;">الزبون</span>
-          <span style="min-width:60px;">الدفع</span>
-          <span style="min-width:110px;">الإجمالي</span>
+          <span style="min-width:50px;">النوع</span>
+          <span style="min-width:100px;">الإجمالي</span>
           <span style="min-width:80px;">التاريخ</span>
         </div>
-        <div id="sale-recent-invoices" style="max-height:360px;overflow-y:auto;">
-          <div class="empty-state">لا توجد فواتير بيع بعد</div>
-        </div>
+        <div id="sale-recent-invoices" style="max-height:380px;overflow-y:auto;"><div class="empty-state">لا توجد فواتير بيع بعد</div></div>
       </div>
-
     </div>
 
     <!-- PURCHASE INVOICE -->
@@ -790,9 +728,9 @@
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <label style="font-size:13px;color:var(--text-muted);min-width:80px">خصم %</label>
-            <input type="number" id="pur-discount" class="input input-sm" style="width:75px" value="0" min="0">
+            <input type="number" id="pur-discount" class="input input-sm" style="width:75px" value="0" min="0" oninput="renderPurchaseTotal()">
             <label style="font-size:13px;color:var(--text-muted)">شحن $</label>
-            <input type="number" id="pur-shipping" class="input input-sm" style="width:90px" value="0" min="0" step="0.01">
+            <input type="number" id="pur-shipping" class="input input-sm" style="width:90px" value="0" min="0" step="0.01" oninput="renderPurchaseTotal()">
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <label style="font-size:13px;color:var(--text-muted);min-width:80px">الدفع</label>
