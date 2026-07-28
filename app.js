@@ -928,14 +928,28 @@ function saveSaleInvoice() {
   // إضافة الزبون تلقائياً
   if(customerName && !db.customers.find(c=>c.name===customerName)) {
     const newId = 'CUS-' + String(db.customers.length+1).padStart(3,'0');
-    db.customers.push({id:newId, name:customerName, phone:'', address:'', balance:0});
+    db.customers.push({id:newId, name:customerName, phone:'', address:'', balance:0, creditBalance:0});
     showToast(`✅ تم إضافة الزبون "${customerName}" تلقائياً`,'success');
   }
 
+  // خصم الرصيد الإضافي أولاً (إن وُجد) قبل حساب المتبقي على الفاتورة
+  const cust = db.customers.find(c=>c.name===customerName);
+  let creditApplied = 0;
+  let effectivePaid = paidAmount;
+  if(cust && (cust.creditBalance||0) > CREDIT_EPSILON) {
+    const res = applyCreditToInvoice(cust.creditBalance, total, 0);
+    creditApplied = res.creditApplied;
+    cust.creditBalance = res.remainingCredit;
+    // العميل يدفع نقداً بحد أقصى المتبقي بعد الخصم
+    effectivePaid = Math.min(paidAmount, res.amountDue);
+    const dueOnInvoice = roundMoney(res.amountDue - effectivePaid);
+    showToast('💳 خُصِم ' + fmtUSD(creditApplied) + ' من الرصيد الإضافي — الرصيد المتبقي ' + fmtUSD(cust.creditBalance) + ' — المتبقي على الفاتورة ' + fmtUSD(dueOnInvoice), 'success');
+  }
+  const settledNow = roundMoney(effectivePaid + creditApplied);
+
   // تحديث رصيد الزبون (الآجل فقط)
   if(paymentType === 'deferred') {
-    const cust = db.customers.find(c=>c.name===customerName);
-    if(cust) cust.balance = (cust.balance||0) + (total - paidAmount);
+    if(cust) cust.balance = (cust.balance||0) + (total - settledNow);
   }
 
   db.invoiceCounters.sale++;
@@ -945,7 +959,7 @@ function saveSaleInvoice() {
     time: timeStr,
     customerName,
     lines, subtotal, discount, total,
-    paidAmount, paymentType, priceType,
+    paidAmount: settledNow, paymentType, priceType,
     taxRate, taxAmount,
     note: saleNote,
     currency: 'USD',
@@ -953,12 +967,12 @@ function saveSaleInvoice() {
   };
   db.salesInvoices.push(inv);
 
-  // إيصال قبض تلقائي لو دفع جزئي
-  if(paidAmount > 0 && paidAmount < total) {
+  // إيصال قبض تلقائي لو دفع نقدي جزئي (الرصيد الإضافي محسوب ضمن paidAmount)
+  if(effectivePaid > 0 && settledNow < total) {
     db.invoiceCounters.receipt = (db.invoiceCounters.receipt||0) + 1;
     db.customerPayments.push({
       receiptNum: 'REC-'+String(db.invoiceCounters.receipt).padStart(3,'0'),
-      customerName, amount: paidAmount, paymentMethod: 'cash',
+      customerName, amount: effectivePaid, paymentMethod: 'cash',
       chequeNum:'', description:'دفعة مع الفاتورة '+inv.number,
       discountOnPayment:0, note:'', date: inv.date,
       linkedInvoice: inv.number, _deposit: true
@@ -1316,7 +1330,7 @@ function savePurchaseInvoice() {
   // إضافة المورد تلقائياً
   if(!db.suppliers.find(s=>s.name===supplierName)) {
     const newId = 'SUP-'+String(db.suppliers.length+1).padStart(3,'0');
-    db.suppliers.push({id:newId, name:supplierName, phone:'', address:'', balance:0});
+    db.suppliers.push({id:newId, name:supplierName, phone:'', address:'', balance:0, creditBalance:0});
   }
 
   // تحديث تكلفة المادة بسعر الشراء الجديد
@@ -1325,10 +1339,23 @@ function savePurchaseInvoice() {
     if(item) item.cost = l.price;
   });
 
+  // خصم الرصيد الإضافي المستحق لنا من المورد أولاً (إن وُجد) قبل حساب المتبقي
+  const sup = db.suppliers.find(s=>s.name===supplierName);
+  let creditApplied = 0;
+  let effectivePaid = paidAmount;
+  if(sup && (sup.creditBalance||0) > CREDIT_EPSILON) {
+    const res = applyCreditToInvoice(sup.creditBalance, total, 0);
+    creditApplied = res.creditApplied;
+    sup.creditBalance = res.remainingCredit;
+    effectivePaid = Math.min(paidAmount, res.amountDue);
+    const dueOnInvoice = roundMoney(res.amountDue - effectivePaid);
+    showToast('💳 خُصِم ' + fmtUSD(creditApplied) + ' من الرصيد الإضافي للمورد — الرصيد المتبقي ' + fmtUSD(sup.creditBalance) + ' — المتبقي على الفاتورة ' + fmtUSD(dueOnInvoice), 'success');
+  }
+  const settledNow = roundMoney(effectivePaid + creditApplied);
+
   // تحديث رصيد المورد (آجل)
   if(paymentType === 'deferred') {
-    const sup = db.suppliers.find(s=>s.name===supplierName);
-    if(sup) sup.balance = (sup.balance||0) + (total - paidAmount);
+    if(sup) sup.balance = (sup.balance||0) + (total - settledNow);
   }
 
   db.invoiceCounters.purchase++;
@@ -1338,7 +1365,7 @@ function savePurchaseInvoice() {
     time: timeStr,
     supplierName, supplierInvoiceNum,
     lines, subtotal, discount, total,
-    paidAmount, paymentType,
+    paidAmount: settledNow, paymentType,
     shippingCost, shippingAccount:'',
     note: purNote,
     currency:'USD', usdToOld: getRate()
@@ -1554,7 +1581,7 @@ function renderSuppliers() {
 function addSupplier() {
   if (!db.suppliers) db.suppliers = [];
   const newId = 'SUP-' + String(db.suppliers.length + 1).padStart(3, '0');
-  db.suppliers.push({ id: newId, name: '', phone: '', address: '', balance: 0 });
+  db.suppliers.push({ id: newId, name: '', phone: '', address: '', balance: 0, creditBalance: 0 });
   saveData(db);
   renderSuppliers();
   showToast('✅ تمت إضافة مورد جديد — أدخل بياناته');
@@ -1571,7 +1598,7 @@ function updateCustomer(i,field,val) { db.customers[i][field]=val; saveData(db);
 
 function addCustomer() {
   const newId = 'CUS-'+String(db.customers.length+1).padStart(3,'0');
-  db.customers.push({id:newId,name:'',phone:'',address:''});
+  db.customers.push({id:newId,name:'',phone:'',address:'',balance:0,creditBalance:0});
   saveData(db); renderCustomers();
 }
 
@@ -2010,6 +2037,36 @@ function isAutoDepositRecord(p) {
   return !!p && (p._deposit === true || /^دفعة مع الفاتورة /.test(p.description || ''));
 }
 
+// ============================================================
+// رصيد إضافي (Credit balance) — دوال نقية تعكس نفس منطق db.js
+// (renderer لا يستطيع require('./db')، لذا نكرر المنطق النقي هنا)
+// ============================================================
+const CREDIT_EPSILON = 0.005;
+
+function roundMoney(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+// دفعة تتجاوز إجمالي المطلوب → يُطبَّق المطلوب على الفواتير ويتحول الفائض إلى رصيد إضافي
+function computeOverpayment(paymentAmount, outstanding) {
+  const pay = Math.max(0, roundMoney(paymentAmount));
+  const due = Math.max(0, roundMoney(outstanding));
+  const appliedToInvoices = Math.min(pay, due);
+  const creditAdded = roundMoney(pay - appliedToInvoices);
+  return { appliedToInvoices: roundMoney(appliedToInvoices), creditAdded,
+           isOverpayment: creditAdded > CREDIT_EPSILON };
+}
+
+// فاتورة جديدة لطرف لديه رصيد إضافي → يُخصَم من الرصيد أولاً قبل حساب المتبقي
+function applyCreditToInvoice(creditBalance, invoiceTotal, alreadyPaid = 0) {
+  const credit = Math.max(0, roundMoney(creditBalance));
+  const due    = Math.max(0, roundMoney(roundMoney(invoiceTotal) - roundMoney(alreadyPaid)));
+  const creditApplied = Math.min(credit, due);
+  return { creditApplied: roundMoney(creditApplied),
+           remainingCredit: roundMoney(credit - creditApplied),
+           amountDue: roundMoney(due - creditApplied) };
+}
+
 // كل دفعات زبون (بيع) أو مورد (شراء)
 function paymentsForParty(name, isSale) {
   const arr = isSale ? (db.customerPayments || []) : (db.supplierPayments || []);
@@ -2030,7 +2087,8 @@ function invoiceBalance(inv) {
   const deposit = parseFloat(inv.paidAmount) || 0;
   const later = paymentsForParty(name, isSale)
     .filter(p => p.linkedInvoice === inv.number && !isAutoDepositRecord(p))
-    .reduce((s, p) => s + (parseFloat(p.amount) || 0) + (parseFloat(p.discountOnPayment) || 0), 0);
+    // نستثني creditAdded: الفائض ذهب لرصيد إضافي وليس سداداً للفاتورة
+    .reduce((s, p) => s + (parseFloat(p.amount) || 0) - (parseFloat(p.creditAdded) || 0) + (parseFloat(p.discountOnPayment) || 0), 0);
   const paid = deposit + later;
   const remaining = Math.max(0, total - paid);
   const closed = remaining <= 0.005;
@@ -2070,8 +2128,9 @@ function getCustomerAccount(customerName) {
   const paidOnDeferred     = deferredInvoices.reduce((s,i) => s + (parseFloat(i.paidAmount)||0), 0);
   const linkedPayments     = realPayments.filter(p =>  p.linkedInvoice);
   const standalonePayments = realPayments.filter(p => !p.linkedInvoice);
-  const totalLinked     = linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) + (parseFloat(p.discountOnPayment)||0), 0);
-  const totalStandalone = standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) + (parseFloat(p.discountOnPayment)||0), 0);
+  // نستثني creditAdded — الفائض ذهب لرصيد إضافي وليس سداداً على الفواتير
+  const totalLinked     = linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
+  const totalStandalone = standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
 
   const remaining = Math.max(0, totalDeferred - paidOnDeferred - totalLinked - totalStandalone);
   const totalPaid = totalCash + (totalDeferred - remaining);
@@ -2234,8 +2293,9 @@ function getSupplierAccount(supplierName) {
   const paidOnDeferred     = deferredInvoices.reduce((s,i) => s + (parseFloat(i.paidAmount)||0), 0);
   const linkedPayments     = realPayments.filter(p =>  p.linkedInvoice);
   const standalonePayments = realPayments.filter(p => !p.linkedInvoice);
-  const totalLinked     = linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) + (parseFloat(p.discountOnPayment)||0), 0);
-  const totalStandalone = standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) + (parseFloat(p.discountOnPayment)||0), 0);
+  // نستثني creditAdded — الفائض ذهب لرصيد إضافي وليس سداداً على الفواتير
+  const totalLinked     = linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
+  const totalStandalone = standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
 
   const remaining = Math.max(0, totalDeferred - paidOnDeferred - totalLinked - totalStandalone);
   const totalPaid = totalCash + (totalDeferred - remaining);
@@ -4061,6 +4121,21 @@ function saveReceiptCustomer() {
     }
   }
 
+  // رصيد إضافي: إن تجاوز المبلغ إجمالي المطلوب على كل الفواتير المفتوحة
+  // (المسار العام بدون ربط يدوي) — أوقف الحفظ واسأل عن حفظ الفرق كرصيد إضافي
+  let creditAdded = 0;
+  if (!_custLinkedInvoice) {
+    const outstanding = getCustomerAccount(customerName).remaining;
+    const netDue = Math.max(0, roundMoney(outstanding - discount));
+    const over = computeOverpayment(amountUSD, netDue);
+    if (over.isOverpayment) {
+      creditAdded = over.creditAdded;
+      const ok = confirm('المبلغ يتجاوز المطلوب بمقدار ' + fmtUSD(creditAdded) +
+        ' — هل تريد حفظ الفرق كرصيد إضافي للعميل؟');
+      if (!ok) return; // إيقاف الحفظ الطبيعي
+    }
+  }
+
   // ربط تلقائي: إن لم يربط المستخدم يدوياً، اربط الدفعة بأقدم فاتورة آجلة مفتوحة
   let linkedInvoice = _custLinkedInvoice || '';
   if (!linkedInvoice) {
@@ -4082,14 +4157,24 @@ function saveReceiptCustomer() {
     discountOnPayment: discount,
     paymentMethod: method,
     chequeNum: cheque,
-    description: desc || (linkedInvoice ? 'سداد فاتورة ' + linkedInvoice : ''),
+    description: desc || (creditAdded > CREDIT_EPSILON
+      ? 'دفعة زائدة — منها ' + fmtUSD(creditAdded) + ' رصيد إضافي'
+      : (linkedInvoice ? 'سداد فاتورة ' + linkedInvoice : '')),
+    creditAdded, // فائض محوَّل لرصيد إضافي — يُستثنى من قوة السداد على الفواتير
     linkedInvoice,
     note, date
   });
 
-  // تحديث رصيد الزبون
+  // تحديث رصيد الزبون — الجزء المطبَّق على الفواتير فقط (نستثني الفائض)
   const cust = db.customers.find(c => c.name === customerName);
-  if (cust) cust.balance = Math.max(0, (cust.balance || 0) - amountUSD - discount);
+  if (cust) {
+    const appliedCash = amountUSD - creditAdded;
+    cust.balance = Math.max(0, (cust.balance || 0) - appliedCash - discount);
+    if (creditAdded > CREDIT_EPSILON) {
+      cust.creditBalance = roundMoney((cust.creditBalance || 0) + creditAdded);
+      showToast('💰 تم حفظ ' + fmtUSD(creditAdded) + ' كرصيد إضافي للعميل — الرصيد الآن ' + fmtUSD(cust.creditBalance), 'success');
+    }
+  }
 
   // الفاتورة المربوطة — احسب حالتها حياً بعد إضافة الدفعة
   if (linkedInvoice) {
@@ -4152,6 +4237,20 @@ function saveReceiptSupplier() {
     }
   }
 
+  // رصيد إضافي مستحق لنا من المورد: إن تجاوز المدفوع إجمالي المطلوب على كل الفواتير المفتوحة
+  let creditAdded = 0;
+  if (!_supLinkedInvoice) {
+    const outstanding = getSupplierAccount(supplierName).remaining;
+    const netDue = Math.max(0, roundMoney(outstanding - discount));
+    const over = computeOverpayment(amountUSD, netDue);
+    if (over.isOverpayment) {
+      creditAdded = over.creditAdded;
+      const ok = confirm('المبلغ يتجاوز المطلوب بمقدار ' + fmtUSD(creditAdded) +
+        ' — هل تريد حفظ الفرق كرصيد إضافي مستحق لنا من المورد؟');
+      if (!ok) return; // إيقاف الحفظ الطبيعي
+    }
+  }
+
   // ربط تلقائي بأقدم فاتورة شراء آجلة مفتوحة
   let linkedInvoice = _supLinkedInvoice || '';
   if (!linkedInvoice) {
@@ -4173,14 +4272,24 @@ function saveReceiptSupplier() {
     discountOnPayment: discount,
     paymentMethod: method,
     chequeNum: cheque,
-    description: desc || (linkedInvoice ? 'سداد فاتورة ' + linkedInvoice : ''),
+    description: desc || (creditAdded > CREDIT_EPSILON
+      ? 'دفعة زائدة — منها ' + fmtUSD(creditAdded) + ' رصيد إضافي'
+      : (linkedInvoice ? 'سداد فاتورة ' + linkedInvoice : '')),
+    creditAdded, // فائض محوَّل لرصيد إضافي — يُستثنى من قوة السداد على الفواتير
     linkedInvoice,
     note, date
   });
 
-  // تحديث رصيد المورد
+  // تحديث رصيد المورد — الجزء المطبَّق على الفواتير فقط (نستثني الفائض)
   const sup = (db.suppliers || []).find(s => s.name === supplierName);
-  if (sup) sup.balance = Math.max(0, (sup.balance || 0) - amountUSD - discount);
+  if (sup) {
+    const appliedCash = amountUSD - creditAdded;
+    sup.balance = Math.max(0, (sup.balance || 0) - appliedCash - discount);
+    if (creditAdded > CREDIT_EPSILON) {
+      sup.creditBalance = roundMoney((sup.creditBalance || 0) + creditAdded);
+      showToast('💰 تم حفظ ' + fmtUSD(creditAdded) + ' كرصيد إضافي مستحق لنا من المورد — الرصيد الآن ' + fmtUSD(sup.creditBalance), 'success');
+    }
+  }
 
   // الفاتورة المربوطة — احسب حالتها حياً بعد إضافة الدفعة
   if (linkedInvoice) {
