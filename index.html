@@ -255,6 +255,10 @@
         <span class="nav-icon-wrap" aria-hidden="true">🛒</span>
         المشتريات
       </div>
+      <div class="nav-item" data-page="statements-hub" onclick="navigate('statements-hub')">
+        <span class="nav-icon-wrap" aria-hidden="true">📋</span>
+        الكشوفات
+      </div>
       <div class="nav-item" data-page="reports" onclick="navigate('reports')">
         <span class="nav-icon-wrap" aria-hidden="true">📄</span>
         التقارير
@@ -2333,6 +2337,172 @@
         </table>
       </div>
     </div>
+
+    <!-- ============================================================
+         📋 مركز الكشوفات (الصفحة الرئيسية)
+         ============================================================ -->
+    <div id="page-statements-hub" class="hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📋 الكشوفات</div>
+          <div class="page-subtitle">اختر نوع الكشف الذي تريد عرضه</div>
+        </div>
+      </div>
+
+      <div class="stmt-hub-grid">
+        <div class="stmt-hub-card" onclick="navigate('invoices-statement')">
+          <div class="stmt-hub-icon">🧾</div>
+          <div class="stmt-hub-title">كشف فواتير</div>
+          <div class="stmt-hub-desc">كل فواتير البيع والشراء في مكان واحد</div>
+        </div>
+        <div class="stmt-hub-card" onclick="navigate('payments-statement')">
+          <div class="stmt-hub-icon">💵</div>
+          <div class="stmt-hub-title">كشف دفعات</div>
+          <div class="stmt-hub-desc">كل إيصالات القبض والدفع المسجلة</div>
+        </div>
+        <div class="stmt-hub-card" onclick="navigate('statements')">
+          <div class="stmt-hub-icon">👤</div>
+          <div class="stmt-hub-title">كشف حساب عميل</div>
+          <div class="stmt-hub-desc">فواتير ودفعات ورصيد زبون أو مورد معيّن</div>
+        </div>
+        <div class="stmt-hub-card" onclick="navigate('account-closing')">
+          <div class="stmt-hub-icon">🔒</div>
+          <div class="stmt-hub-title">تسكير حساب</div>
+          <div class="stmt-hub-desc">تسوية وإقفال رصيد زبون أو مورد</div>
+        </div>
+        <div class="stmt-hub-card" onclick="navigate('customer-balances')">
+          <div class="stmt-hub-icon">📊</div>
+          <div class="stmt-hub-title">كشف أرصدة العملاء</div>
+          <div class="stmt-hub-desc">أرصدة جميع الزبائن والموردين دفعة واحدة</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         🧾 كشف فواتير (بيع + شراء)
+         ============================================================ -->
+    <div id="page-invoices-statement" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">🧾 كشف فواتير</div>
+          <div class="page-subtitle">جميع فواتير البيع والشراء</div>
+        </div>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم الفاتورة</th>
+              <th>النوع</th>
+              <th>الطرف</th>
+              <th>التاريخ</th>
+              <th style="text-align:center">نوع الدفع</th>
+              <th style="text-align:left">الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody id="invoices-statement-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         💵 كشف دفعات (قبض + دفع)
+         ============================================================ -->
+    <div id="page-payments-statement" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">💵 كشف دفعات</div>
+          <div class="page-subtitle">جميع إيصالات القبض من الزبائن والدفع للموردين</div>
+        </div>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم السند</th>
+              <th>النوع</th>
+              <th>الطرف</th>
+              <th>التاريخ</th>
+              <th style="text-align:center">طريقة الدفع</th>
+              <th style="text-align:left">المبلغ</th>
+            </tr>
+          </thead>
+          <tbody id="payments-statement-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         🔒 تسكير حساب
+         ============================================================ -->
+    <div id="page-account-closing" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">🔒 تسكير حساب</div>
+          <div class="page-subtitle">اختر زبونًا أو موردًا لعرض رصيده تمهيدًا لتسويته — الميزة الكاملة قيد التطوير</div>
+        </div>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+      </div>
+
+      <div class="wh-action-card" style="margin-bottom:20px">
+        <div class="wh-action-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--brand-600),var(--accent-500));display:flex;align-items:center;justify-content:center;font-size:20px">🔒</div>
+            <div>
+              <div style="font-size:15px;font-weight:800;color:var(--text-primary)">اختيار الحساب</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:1px">اكتب اسم الزبون أو المورد لعرض رصيده الحالي</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:20px">
+          <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:end">
+            <div>
+              <label class="form-label">اسم الزبون أو المورد</label>
+              <input type="text" id="close-acc-name" class="input" placeholder="اكتب الاسم للبحث..." list="close-acc-datalist" style="margin-top:8px;width:100%">
+              <datalist id="close-acc-datalist"></datalist>
+            </div>
+            <button class="btn btn-primary btn-lg" onclick="loadAccountClosing()">🔍 عرض الرصيد</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="close-acc-result" style="width:100%;background:var(--bg-card);border-radius:var(--r-xl);border:1px solid var(--border);box-shadow:var(--shadow-sm);min-height:160px;display:flex;align-items:center;justify-content:center">
+        <div style="text-align:center;color:var(--text-muted);padding:40px">
+          <div style="font-size:52px;margin-bottom:12px;opacity:.15">🔒</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-secondary)">اختر حسابًا لعرض رصيده هنا</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         📊 كشف أرصدة العملاء
+         ============================================================ -->
+    <div id="page-customer-balances" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">📊 كشف أرصدة العملاء</div>
+          <div class="page-subtitle">رصيد كل زبون ومورد دفعة واحدة</div>
+        </div>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>الاسم</th>
+              <th>النوع</th>
+              <th>إجمالي الفواتير</th>
+              <th>المدفوع</th>
+              <th style="text-align:left">المتبقي</th>
+            </tr>
+          </thead>
+          <tbody id="customer-balances-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
 
     <!-- ============================================================
          📋 صفحة الكشوفات
