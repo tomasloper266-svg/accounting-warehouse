@@ -635,6 +635,41 @@ html.dark .inv-number-badge { background: rgba(99,102,241,.12); color: var(--bra
 .kpi-trend.down { background: var(--danger-50);  color: var(--danger-700); }
 html.dark .kpi-trend.up   { background: rgba(34,197,94,.1);  color: var(--success-400); }
 html.dark .kpi-trend.down { background: rgba(239,68,68,.1);  color: var(--danger-400); }
+/* ════════════════════════════════════
+   11b. STATEMENTS HUB — شبكة بطاقات الكشوفات
+════════════════════════════════════ */
+.stmt-hub-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: var(--s5); max-width: 980px; margin: var(--s4) auto 0;
+}
+@media (max-width:900px) { .stmt-hub-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width:600px) { .stmt-hub-grid { grid-template-columns: 1fr; } }
+
+.stmt-hub-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-2xl); padding: var(--s7) var(--s5);
+  text-align: center; cursor: pointer; position: relative; overflow: hidden;
+  box-shadow: var(--shadow-sm); transition: all var(--t-base);
+}
+.stmt-hub-card:hover {
+  transform: translateY(-4px); box-shadow: var(--shadow-xl);
+  border-color: var(--brand-300);
+}
+.stmt-hub-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+  background: linear-gradient(90deg, var(--brand-500), var(--accent-500));
+}
+.stmt-hub-icon {
+  width: 64px; height: 64px; border-radius: var(--r-lg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; margin: 0 auto var(--s4);
+  background: linear-gradient(135deg, var(--brand-50), var(--brand-100));
+}
+html.dark .stmt-hub-icon { background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(139,92,246,.12)); }
+.stmt-hub-title { font-size: 16px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+.stmt-hub-desc  { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+
 
 /* ══════════════════════════════════════════
    12. INVOICE FORM

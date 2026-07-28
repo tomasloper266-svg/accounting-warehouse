@@ -434,7 +434,7 @@ function fmt(n) { return fmtOld(n); }
 // ============================================================
 // ROUTER
 // ============================================================
-const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','trash'];
+const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','statements-hub','invoices-statement','payments-statement','account-closing','customer-balances','trash'];
 let currentPage = 'dashboard';
 
 function navigate(page) {
@@ -466,6 +466,11 @@ function render(page) {
     case 'damages': renderDamages(); updateWarehouseSelects(); break;
     case 'stock': renderStock(); break;
     case 'statements': renderStatements(); break;
+    case 'statements-hub': renderStatementsHub(); break;
+    case 'invoices-statement': renderInvoicesStatement(); break;
+    case 'payments-statement': renderPaymentsStatement(); break;
+    case 'account-closing': renderAccountClosing(); break;
+    case 'customer-balances': renderCustomerBalances(); break;
     case 'trash': renderTrash(); break;
   }
 }
@@ -4856,6 +4861,134 @@ function loadItemStatement() {
         </tbody>
       </table>
     </div>`;
+}
+
+// ============================================================
+// STATEMENTS HUB — مركز الكشوفات (بطاقات توجيهية + كشوفات مبدئية)
+// ============================================================
+
+// الصفحة الرئيسية عبارة عن شبكة بطاقات ثابتة، لا بيانات ديناميكية بعد —
+// نقطة توسّع جاهزة إن احتجنا إحصائيات سريعة على البطاقات لاحقاً.
+function renderStatementsHub() {}
+
+function paymentMethodLabel(method) {
+  return {cash:'نقداً', cheque:'شيك', transfer:'حوالة'}[method] || 'نقداً';
+}
+
+// كشف فواتير — دمج فواتير البيع والشراء في جدول واحد
+function renderInvoicesStatement() {
+  const tbody = document.getElementById('invoices-statement-tbody');
+  if (!tbody) return;
+
+  const sales     = activeSalesInvoices().map(i => ({ ...i, kind: 'sale', party: i.customerName }));
+  const purchases = activePurchaseInvoices().map(i => ({ ...i, kind: 'purchase', party: i.supplierName }));
+  const rows = [...sales, ...purchases].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">لا توجد فواتير بعد</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(inv => `
+    <tr>
+      <td><span class="inv-link" onclick="openInvoiceDetail('${inv.number}')">${inv.number||'—'}</span></td>
+      <td>${inv.kind === 'sale' ? '🧾 بيع' : '🛒 شراء'}</td>
+      <td>${inv.party||'—'}</td>
+      <td>${inv.date||'—'}</td>
+      <td style="text-align:center">${(inv.paymentType||'cash')==='cash' ? 'نقداً' : 'آجل'}</td>
+      <td style="text-align:left;font-weight:700">${fmtUSD(inv.total||0)}</td>
+    </tr>`).join('');
+}
+
+// كشف دفعات — دمج إيصالات القبض من الزبائن والدفع للموردين في جدول واحد
+function renderPaymentsStatement() {
+  const tbody = document.getElementById('payments-statement-tbody');
+  if (!tbody) return;
+
+  const custPayments = (db.customerPayments||[]).map(p => ({ ...p, kind: 'customer', party: p.customerName }));
+  const suppPayments = (db.supplierPayments||[]).map(p => ({ ...p, kind: 'supplier', party: p.supplierName }));
+  const rows = [...custPayments, ...suppPayments].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">لا توجد دفعات مسجلة بعد</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(p => `
+    <tr>
+      <td>${p.receiptNum || '—'}</td>
+      <td>${p.kind === 'customer' ? '⬇️ قبض من زبون' : '⬆️ دفع لمورد'}</td>
+      <td>${p.party || '—'}</td>
+      <td>${p.date || '—'}</td>
+      <td style="text-align:center">${paymentMethodLabel(p.paymentMethod)}</td>
+      <td style="text-align:left;font-weight:700;color:var(--success-600)">${fmtUSD(parseFloat(p.amount)||0)}</td>
+    </tr>`).join('');
+}
+
+// تسكير حساب — عرض مبدئي لرصيد الطرف تمهيداً لإضافة منطق الإقفال لاحقاً
+function renderAccountClosing() {
+  const dl = document.getElementById('close-acc-datalist');
+  if (!dl) return;
+  const names = [...db.customers.map(c => c.name), ...(db.suppliers||[]).map(s => s.name)];
+  dl.innerHTML = [...new Set(names)].map(n => `<option value="${n}">`).join('');
+}
+
+function loadAccountClosing() {
+  const name = (document.getElementById('close-acc-name')?.value || '').trim();
+  if (!name) { showToast('اكتب اسم زبون أو مورد', 'error'); return; }
+
+  const isCust = db.customers.find(c => c.name === name);
+  const isSupp = (db.suppliers||[]).find(s => s.name === name);
+  if (!isCust && !isSupp) { showToast('لم يتم العثور على هذا الاسم', 'error'); return; }
+
+  const acc = isCust ? getCustomerAccount(name) : getSupplierAccount(name);
+  const el = document.getElementById('close-acc-result');
+  if (!el) return;
+
+  el.innerHTML = `
+    <div style="width:100%;padding:24px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+        <div style="background:var(--brand-50);border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:11px;color:var(--brand-600);font-weight:700;margin-bottom:6px">إجمالي الفواتير</div>
+          <div style="font-size:19px;font-weight:800;color:var(--text-primary)">${fmtUSD(acc.totalInvoices)}</div>
+        </div>
+        <div style="background:var(--success-50);border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:11px;color:var(--success-700);font-weight:700;margin-bottom:6px">إجمالي المدفوع</div>
+          <div style="font-size:19px;font-weight:800;color:var(--text-primary)">${fmtUSD(acc.totalPaid)}</div>
+        </div>
+        <div style="background:${acc.remaining>0?'var(--danger-50)':'var(--success-50)'};border-radius:12px;padding:16px;text-align:center;border:1.5px solid ${acc.remaining>0?'var(--danger-100)':'var(--success-100)'}">
+          <div style="font-size:11px;color:${acc.remaining>0?'var(--danger-600)':'var(--success-700)'};font-weight:700;margin-bottom:6px">الرصيد المتبقي</div>
+          <div style="font-size:20px;font-weight:900;color:${acc.remaining>0?'var(--danger-600)':'var(--success-700)'}">${fmtUSD(acc.remaining)}</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" disabled style="opacity:.55;cursor:not-allowed" title="ميزة تسكير الحساب الكاملة قيد التطوير">
+        🔒 تسكير الحساب (قريباً)
+      </button>
+    </div>`;
+}
+
+// كشف أرصدة العملاء — رصيد كل زبون ومورد دفعة واحدة (يعتمد على الحسابات الموجودة)
+function renderCustomerBalances() {
+  const tbody = document.getElementById('customer-balances-tbody');
+  if (!tbody) return;
+
+  const custRows = db.customers.map(c => ({ name: c.name, kind: 'زبون', ...getCustomerAccount(c.name) }));
+  const suppRows = (db.suppliers||[]).map(s => ({ name: s.name, kind: 'مورد', ...getSupplierAccount(s.name) }));
+  const rows = [...custRows, ...suppRows];
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">لا يوجد زبائن أو موردون بعد</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="font-weight:600">${r.name}</td>
+      <td>${r.kind}</td>
+      <td>${fmtUSD(r.totalInvoices||0)}</td>
+      <td style="color:var(--success-600)">${fmtUSD(r.totalPaid||0)}</td>
+      <td style="text-align:left;font-weight:800;color:${(r.remaining||0)>0?'var(--danger-600)':'var(--success-700)'}">${fmtUSD(r.remaining||0)}</td>
+    </tr>`).join('');
 }
 
 // ============================================================
