@@ -259,6 +259,10 @@
         <span class="nav-icon-wrap" aria-hidden="true">📄</span>
         التقارير
       </div>
+      <div class="nav-item" data-page="trash" onclick="navigate('trash')">
+        <span class="nav-icon-wrap" aria-hidden="true">🗑️</span>
+        سلة المحذوفات
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -1781,6 +1785,7 @@
       </div>
       <div style="display:flex;gap:var(--space-2)">
         <button class="btn btn-secondary btn-sm" onclick="printDetailInvoice()">🖨️ طباعة</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteInvoiceFromDetail()">🗑️ نقل للمحذوفات</button>
         <button class="btn btn-ghost btn-sm" onclick="closeDetailModal()">✕</button>
       </div>
     </div>
@@ -2447,6 +2452,62 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- ============================================================
+         🗑️ سلة المحذوفات
+         ============================================================ -->
+    <div id="page-trash" class="hidden">
+      <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="page-title">🗑️ سلة المحذوفات</div>
+          <div class="page-subtitle">فواتير البيع والشراء المحذوفة — استرجعها أو احذفها نهائياً</div>
+        </div>
+      </div>
+
+      <!-- فواتير البيع المحذوفة -->
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            🧾 فواتير البيع المحذوفة
+            <span id="trash-sale-count" style="font-size:11px;background:var(--surface-secondary);color:var(--text-muted);padding:2px 8px;border-radius:999px;font-weight:500;">0 فاتورة</span>
+          </div>
+          <input type="text" id="trash-sale-search" class="input input-sm"
+            placeholder="🔍 بحث برقم الفاتورة أو اسم الزبون..."
+            oninput="renderTrash()"
+            style="width:230px;max-width:100%;">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:6px 4px;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border-subtle);margin-bottom:4px;">
+          <span style="min-width:80px;">رقم الفاتورة</span>
+          <span style="flex:1;">الزبون</span>
+          <span style="min-width:100px;">الإجمالي</span>
+          <span style="min-width:120px;">تاريخ الحذف</span>
+          <span style="min-width:180px;">إجراءات</span>
+        </div>
+        <div id="trash-sale-list" style="max-height:380px;overflow-y:auto;"><div class="empty-state">لا توجد فواتير بيع محذوفة</div></div>
+      </div>
+
+      <!-- فواتير الشراء المحذوفة -->
+      <div class="card" style="margin-top:var(--space-5)">
+        <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            🛒 فواتير الشراء المحذوفة
+            <span id="trash-pur-count" style="font-size:11px;background:var(--surface-secondary);color:var(--text-muted);padding:2px 8px;border-radius:999px;font-weight:500;">0 فاتورة</span>
+          </div>
+          <input type="text" id="trash-pur-search" class="input input-sm"
+            placeholder="🔍 بحث برقم الفاتورة أو اسم المورد..."
+            oninput="renderTrash()"
+            style="width:230px;max-width:100%;">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:6px 4px;font-size:11px;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border-subtle);margin-bottom:4px;">
+          <span style="min-width:80px;">رقم الفاتورة</span>
+          <span style="flex:1;">المورد</span>
+          <span style="min-width:100px;">الإجمالي</span>
+          <span style="min-width:120px;">تاريخ الحذف</span>
+          <span style="min-width:180px;">إجراءات</span>
+        </div>
+        <div id="trash-pur-list" style="max-height:380px;overflow-y:auto;"><div class="empty-state">لا توجد فواتير شراء محذوفة</div></div>
+      </div>
     </div>
 
 </main>

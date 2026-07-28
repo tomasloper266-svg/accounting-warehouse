@@ -124,7 +124,8 @@ function createTables() {
       taxRate         REAL DEFAULT 0,
       taxAmount       REAL DEFAULT 0,
       note            TEXT DEFAULT '',
-      paymentStatus   TEXT DEFAULT ''
+      paymentStatus   TEXT DEFAULT '',
+      deletedAt       TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS sales_lines (
@@ -154,7 +155,8 @@ function createTables() {
       currency            TEXT DEFAULT 'USD',
       usdToOld            REAL DEFAULT 0,
       note                TEXT DEFAULT '',
-      paymentStatus       TEXT DEFAULT ''
+      paymentStatus       TEXT DEFAULT '',
+      deletedAt           TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS purchase_lines (
@@ -281,6 +283,9 @@ function migrateSchema() {
     { table: 'supplier_payments', column: 'discountOnPayment', def: "REAL DEFAULT 0" },
     { table: 'sales_invoices',    column: 'paymentStatus',     def: "TEXT DEFAULT ''" },
     { table: 'purchase_invoices', column: 'paymentStatus',     def: "TEXT DEFAULT ''" },
+    // سلة المحذوفات — حذف ناعم قابل للاسترجاع
+    { table: 'sales_invoices',    column: 'deletedAt',         def: "TEXT DEFAULT ''" },
+    { table: 'purchase_invoices', column: 'deletedAt',         def: "TEXT DEFAULT ''" },
     // customers / suppliers — رصيد
     { table: 'customers', column: 'balance', def: "REAL DEFAULT 0" },
     { table: 'suppliers', column: 'balance', def: "REAL DEFAULT 0" },
@@ -441,10 +446,10 @@ function saveAll(data) {
     const insSaleInv = db.prepare(`
       INSERT INTO sales_invoices
         (number, date, time, customerName, subtotal, discount, total, paidAmount,
-         paymentType, priceType, currency, usdToOld, taxRate, taxAmount, note, paymentStatus)
+         paymentType, priceType, currency, usdToOld, taxRate, taxAmount, note, paymentStatus, deletedAt)
       VALUES
         (@number, @date, @time, @customerName, @subtotal, @discount, @total, @paidAmount,
-         @paymentType, @priceType, @currency, @usdToOld, @taxRate, @taxAmount, @note, @paymentStatus)
+         @paymentType, @priceType, @currency, @usdToOld, @taxRate, @taxAmount, @note, @paymentStatus, @deletedAt)
     `);
     const insSaleLine = db.prepare(`
       INSERT INTO sales_lines (invoiceNumber, itemId, qty, price, total, unitType, note)
@@ -461,7 +466,8 @@ function saveAll(data) {
         currency: inv.currency || 'USD', usdToOld: inv.usdToOld || 0,
         taxRate: inv.taxRate || 0, taxAmount: inv.taxAmount || 0,
         note: inv.note || '',
-        paymentStatus: inv.paymentStatus || ''
+        paymentStatus: inv.paymentStatus || '',
+        deletedAt: inv.deletedAt || ''
       });
       (inv.lines || []).forEach(l => insSaleLine.run({
         invoiceNumber: inv.number, itemId: l.itemId || '',
@@ -476,10 +482,10 @@ function saveAll(data) {
     const insPurInv = db.prepare(`
       INSERT INTO purchase_invoices
         (number, date, time, supplierName, supplierInvoiceNum, subtotal, discount, total,
-         paidAmount, paymentType, shippingCost, shippingAccount, currency, usdToOld, note, paymentStatus)
+         paidAmount, paymentType, shippingCost, shippingAccount, currency, usdToOld, note, paymentStatus, deletedAt)
       VALUES
         (@number, @date, @time, @supplierName, @supplierInvoiceNum, @subtotal, @discount, @total,
-         @paidAmount, @paymentType, @shippingCost, @shippingAccount, @currency, @usdToOld, @note, @paymentStatus)
+         @paidAmount, @paymentType, @shippingCost, @shippingAccount, @currency, @usdToOld, @note, @paymentStatus, @deletedAt)
     `);
     const insPurLine = db.prepare(`
       INSERT INTO purchase_lines (invoiceNumber, itemId, qty, price, total, unitType, note)
@@ -497,7 +503,8 @@ function saveAll(data) {
         shippingAccount: inv.shippingAccount || '',
         currency: inv.currency || 'USD', usdToOld: inv.usdToOld || 0,
         note: inv.note || '',
-        paymentStatus: inv.paymentStatus || ''
+        paymentStatus: inv.paymentStatus || '',
+        deletedAt: inv.deletedAt || ''
       });
       (inv.lines || []).forEach(l => insPurLine.run({
         invoiceNumber: inv.number, itemId: l.itemId || '',

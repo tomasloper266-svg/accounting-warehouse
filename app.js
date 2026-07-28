@@ -237,11 +237,160 @@ function saveData(data) {
 let db = JSON.parse(JSON.stringify(defaultData));
 
 // ============================================================
+// سلة المحذوفات — حذف ناعم قابل للاسترجاع
+// فواتير البيع/الشراء المحذوفة تبقى في db.salesInvoices/db.purchaseInvoices
+// (للاحتفاظ بإمكانية الاسترجاع) مع وسم deletedAt.
+// أي قراءة للتقارير/اللوحات/الإحصائيات يجب أن تمرّ عبر
+// activeSalesInvoices()/activePurchaseInvoices() لاستبعاد المحذوفات تلقائياً.
+// ============================================================
+function activeSalesInvoices()    { return (db.salesInvoices    || []).filter(i => !i.deletedAt); }
+function activePurchaseInvoices() { return (db.purchaseInvoices || []).filter(i => !i.deletedAt); }
+function trashedSalesInvoices()    { return (db.salesInvoices    || []).filter(i => !!i.deletedAt); }
+function trashedPurchaseInvoices() { return (db.purchaseInvoices || []).filter(i => !!i.deletedAt); }
+
+// نافذة تأكيد عامة — confirm() غير موثوق داخل Electron فنستخدم modal خاص
+function showConfirmModal({ title, message, confirmLabel = 'تأكيد', danger = true, onConfirm }) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:inherit;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+      <h3 style="margin:0 0 8px;font-size:18px;color:#0f172a;">${title}</h3>
+      <p style="margin:0 0 24px;font-size:14px;color:#64748b;white-space:pre-line;">${message}</p>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button id="confirm-modal-cancel" style="padding:10px 24px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;font-size:14px;cursor:pointer;font-family:inherit;">إلغاء</button>
+        <button id="confirm-modal-ok" style="padding:10px 24px;border-radius:8px;border:none;background:${danger ? '#ef4444' : '#4f46e5'};color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">${confirmLabel}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const close = () => { if (document.body.contains(overlay)) document.body.removeChild(overlay); };
+  document.getElementById('confirm-modal-cancel').onclick = close;
+  document.getElementById('confirm-modal-ok').onclick = () => { close(); onConfirm(); };
+}
+
+// نقل فاتورة (بيع/شراء) إلى سلة المحذوفات — حذف ناعم فقط
+// (لا يوجد حذف نهائي مباشر من القوائم العادية أبداً)
+function softDeleteInvoice(number, isSale) {
+  const list = isSale ? db.salesInvoices : db.purchaseInvoices;
+  const inv = (list || []).find(i => i.number === number);
+  if (!inv) return;
+  showConfirmModal({
+    title: 'نقل الفاتورة إلى المحذوفات',
+    message: `سيتم نقل الفاتورة "${number}" إلى سلة المحذوفات.\nستختفي من القوائم والتقارير فوراً ويمكن استرجاعها لاحقاً من سلة المحذوفات.`,
+    confirmLabel: '🗑️ نقل إلى المحذوفات',
+    danger: true,
+    onConfirm: () => {
+      inv.deletedAt = new Date().toISOString();
+      saveData(db);
+      showToast('🗑️ تم نقل الفاتورة ' + number + ' إلى المحذوفات', 'success');
+      const modal = document.getElementById('invoice-detail-modal');
+      if (modal && !modal.classList.contains('hidden')) closeDetailModal();
+      render(currentPage);
+    }
+  });
+}
+
+// استرجاع فاتورة من سلة المحذوفات إلى حالتها الطبيعية — تظهر مجدداً في قائمتها الأصلية
+function restoreInvoiceFromTrash(number, isSale) {
+  const list = isSale ? db.salesInvoices : db.purchaseInvoices;
+  const inv = (list || []).find(i => i.number === number);
+  if (!inv) return;
+  inv.deletedAt = '';
+  saveData(db);
+  showToast('♻️ تم استرجاع الفاتورة ' + number, 'success');
+  renderTrash();
+}
+
+// حذف نهائي من سلة المحذوفات — لا يمكن التراجع عنه
+function permanentlyDeleteInvoice(number, isSale) {
+  showConfirmModal({
+    title: 'حذف نهائي',
+    message: `سيتم حذف الفاتورة "${number}" نهائياً ولا يمكن التراجع عن هذا الإجراء أبداً.`,
+    confirmLabel: '🗑️ حذف نهائي',
+    danger: true,
+    onConfirm: () => {
+      if (isSale) db.salesInvoices = (db.salesInvoices || []).filter(i => i.number !== number);
+      else db.purchaseInvoices = (db.purchaseInvoices || []).filter(i => i.number !== number);
+      saveData(db);
+      showToast('✅ تم الحذف النهائي للفاتورة ' + number, 'success');
+      renderTrash();
+    }
+  });
+}
+
+// زر الحذف داخل مودال تفاصيل الفاتورة
+function deleteInvoiceFromDetail() {
+  const modal = document.getElementById('invoice-detail-modal');
+  const number = modal.dataset.number;
+  const isSale = modal.dataset.type === 'sale';
+  softDeleteInvoice(number, isSale);
+}
+
+// عرض صفحة سلة المحذوفات — فواتير البيع والشراء المحذوفة كل في قسمها
+function renderTrash() {
+  const saleSearch = (document.getElementById('trash-sale-search')?.value || '').toLowerCase().trim();
+  const purSearch  = (document.getElementById('trash-pur-search')?.value  || '').toLowerCase().trim();
+
+  const trashedSales = trashedSalesInvoices()
+    .filter(inv => !saleSearch || (inv.number||'').toLowerCase().includes(saleSearch) || (inv.customerName||'').toLowerCase().includes(saleSearch))
+    .sort((a,b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+  const trashedPurchases = trashedPurchaseInvoices()
+    .filter(inv => !purSearch || (inv.number||'').toLowerCase().includes(purSearch) || (inv.supplierName||'').toLowerCase().includes(purSearch))
+    .sort((a,b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+
+  const saleCountEl = document.getElementById('trash-sale-count');
+  if (saleCountEl) saleCountEl.textContent = trashedSales.length + ' فاتورة';
+  const purCountEl = document.getElementById('trash-pur-count');
+  if (purCountEl) purCountEl.textContent = trashedPurchases.length + ' فاتورة';
+
+  const fmtDeletedAt = (iso) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleDateString('ar-SY') + ' ' + d.toLocaleTimeString('ar-SY', {hour:'2-digit', minute:'2-digit'});
+  };
+
+  const saleListEl = document.getElementById('trash-sale-list');
+  if (saleListEl) {
+    saleListEl.innerHTML = trashedSales.length === 0
+      ? '<div class="empty-state">لا توجد فواتير بيع محذوفة</div>'
+      : trashedSales.map(inv => `
+        <div class="invoice-row">
+          <span class="inv-num">${inv.number}</span>
+          <span class="inv-customer">${inv.customerName || '—'}</span>
+          <span class="inv-total">${fmtUSD(inv.total)}</span>
+          <span class="inv-date">${fmtDeletedAt(inv.deletedAt)}</span>
+          <span style="display:flex;gap:6px;">
+            <button class="btn btn-success btn-sm" onclick="restoreInvoiceFromTrash('${inv.number}', true)">♻️ استرجاع</button>
+            <button class="btn btn-danger btn-sm" onclick="permanentlyDeleteInvoice('${inv.number}', true)">🗑️ حذف نهائي</button>
+          </span>
+        </div>`).join('');
+  }
+
+  const purListEl = document.getElementById('trash-pur-list');
+  if (purListEl) {
+    purListEl.innerHTML = trashedPurchases.length === 0
+      ? '<div class="empty-state">لا توجد فواتير شراء محذوفة</div>'
+      : trashedPurchases.map(inv => `
+        <div class="invoice-row">
+          <span class="inv-num">${inv.number}</span>
+          <span class="inv-customer">${inv.supplierName || '—'}</span>
+          <span class="inv-total">${fmtUSD(inv.total)}</span>
+          <span class="inv-date">${fmtDeletedAt(inv.deletedAt)}</span>
+          <span style="display:flex;gap:6px;">
+            <button class="btn btn-success btn-sm" onclick="restoreInvoiceFromTrash('${inv.number}', false)">♻️ استرجاع</button>
+            <button class="btn btn-danger btn-sm" onclick="permanentlyDeleteInvoice('${inv.number}', false)">🗑️ حذف نهائي</button>
+          </span>
+        </div>`).join('');
+  }
+}
+
+
+// ============================================================
 // حساب المخزون
 // ============================================================
 function getStats() {
-  const totalSales = db.salesInvoices.reduce((s,i)=>s+(i.total||0),0);
-  const totalPurchases = db.purchaseInvoices.reduce((s,i)=>s+(i.total||0),0);
+  const totalSales = activeSalesInvoices().reduce((s,i)=>s+(i.total||0),0);
+  const totalPurchases = activePurchaseInvoices().reduce((s,i)=>s+(i.total||0),0);
   // ✅ إصلاح: حساب المرتجعات في الأرباح
   const totalReturnSales = (db.returns||[]).filter(r=>r.type==='sale').reduce((s,r)=>s+(r.total||0),0);
   const totalReturnPurchases = (db.returns||[]).filter(r=>r.type==='purchase').reduce((s,r)=>s+(r.total||0),0);
@@ -254,7 +403,7 @@ function getStats() {
   return { totalSales, totalPurchases, netSales, netPurchases, profit,
            totalReturnSales, totalReturnPurchases,
            lowStock, invValue,
-           salesCount: db.salesInvoices.length, purchasesCount: db.purchaseInvoices.length,
+           salesCount: activeSalesInvoices().length, purchasesCount: activePurchaseInvoices().length,
            returnsCount: (db.returns||[]).length };
 }
 
@@ -285,7 +434,7 @@ function fmt(n) { return fmtOld(n); }
 // ============================================================
 // ROUTER
 // ============================================================
-const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements'];
+const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','trash'];
 let currentPage = 'dashboard';
 
 function navigate(page) {
@@ -317,6 +466,7 @@ function render(page) {
     case 'damages': renderDamages(); updateWarehouseSelects(); break;
     case 'stock': renderStock(); break;
     case 'statements': renderStatements(); break;
+    case 'trash': renderTrash(); break;
   }
 }
 
@@ -415,13 +565,13 @@ function renderDashboardBarChart() {
     });
   }
 
-  db.salesInvoices.forEach(inv => {
+  activeSalesInvoices().forEach(inv => {
     if (!inv.date) return;
     const mk = inv.date.substring(0,7);
     const m = months.find(m => m.key === mk);
     if (m) m.sales += (inv.total || 0);
   });
-  db.purchaseInvoices.forEach(inv => {
+  activePurchaseInvoices().forEach(inv => {
     if (!inv.date) return;
     const mk = inv.date.substring(0,7);
     const m = months.find(m => m.key === mk);
@@ -484,8 +634,8 @@ function renderAllInvoices() {
   const searchVal = (document.getElementById('invoices-search') ? document.getElementById('invoices-search').value : '').toLowerCase().trim();
 
   const all = [
-    ...db.salesInvoices.map(i=>({...i, type:'بيع'})),
-    ...db.purchaseInvoices.map(i=>({...i, type:'شراء'}))
+    ...activeSalesInvoices().map(i=>({...i, type:'بيع'})),
+    ...activePurchaseInvoices().map(i=>({...i, type:'شراء'}))
   ].sort((a,b) => new Date(b.date) - new Date(a.date));
 
   const payFilter = document.getElementById('invoices-pay-filter') ? document.getElementById('invoices-pay-filter').value : 'all';
@@ -587,7 +737,7 @@ function renderSaleRecentInvoices() {
   const el = document.getElementById('sale-recent-invoices');
   if(!el) return;
   const searchVal = (document.getElementById('sale-invoices-search') ? document.getElementById('sale-invoices-search').value : '').toLowerCase().trim();
-  const all = db.salesInvoices.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const all = activeSalesInvoices().sort((a,b)=>new Date(b.date)-new Date(a.date));
   const salePayFilter = document.getElementById('sale-pay-filter') ? document.getElementById('sale-pay-filter').value : 'all';
   const filtered = all.filter(inv => {
     const matchSearch = !searchVal ||
@@ -614,6 +764,7 @@ function renderSaleRecentInvoices() {
       spb +
       '<span class="inv-total">' + fmtUSD(inv.total) + '</span>' +
       '<span class="inv-date">' + inv.date + '</span>' +
+      '<button class="btn btn-ghost btn-sm" title="نقل للمحذوفات" onclick="event.stopPropagation();softDeleteInvoice(\'' + inv.number + '\', true)" style="color:var(--danger-600, #dc2626);">🗑️</button>' +
       '</div>';
   }).join('');
 }
@@ -828,10 +979,10 @@ function saveSaleInvoice() {
 // PRINT / PDF
 // ============================================================
 function printInvoice(invNumber) {
-  const inv = db.salesInvoices.find(i=>i.number===invNumber) ||
-              db.purchaseInvoices.find(i=>i.number===invNumber);
+  const inv = activeSalesInvoices().find(i=>i.number===invNumber) ||
+              activePurchaseInvoices().find(i=>i.number===invNumber);
   if(!inv) return;
-  const isSale = !!db.salesInvoices.find(i=>i.number===invNumber);
+  const isSale = !!activeSalesInvoices().find(i=>i.number===invNumber);
   const type = isSale ? 'فاتورة بيع' : 'فاتورة شراء';
   const party = inv.customerName || inv.supplierName || '—';
   const partyLabel = isSale ? 'الزبون' : 'المورد';
@@ -1113,7 +1264,7 @@ function renderPurchaseRecentInvoices() {
   const el = document.getElementById('pur-recent-invoices');
   if(!el) return;
   const searchVal = (document.getElementById('pur-invoices-search') ? document.getElementById('pur-invoices-search').value : '').toLowerCase().trim();
-  const all = db.purchaseInvoices.slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const all = activePurchaseInvoices().sort((a,b)=>new Date(b.date)-new Date(a.date));
   const purPayFilter = document.getElementById('pur-pay-filter') ? document.getElementById('pur-pay-filter').value : 'all';
   const filtered = all.filter(inv => {
     const matchSearch = !searchVal ||
@@ -1140,6 +1291,7 @@ function renderPurchaseRecentInvoices() {
       ppb +
       '<span class="inv-total">' + fmtUSD(inv.total) + '</span>' +
       '<span class="inv-date">' + inv.date + '</span>' +
+      '<button class="btn btn-ghost btn-sm" title="نقل للمحذوفات" onclick="event.stopPropagation();softDeleteInvoice(\'' + inv.number + '\', false)" style="color:var(--danger-600, #dc2626);">🗑️</button>' +
       '</div>';
   }).join('');
 }
@@ -1349,7 +1501,7 @@ function renderCustomers() {
     return;
   }
   tbody.innerHTML = db.customers.map((c,i) => {
-    const sales = db.salesInvoices.filter(s=>s.customerName===c.name);
+    const sales = activeSalesInvoices().filter(s=>s.customerName===c.name);
     const total = sales.reduce((s,inv)=>s+inv.total,0);
     const invoicesList = sales.length > 0
       ? sales.map(s=>`<span class="inv-link" onclick="openInvoiceDetail('${s.number}')">${s.number}</span>`).join(' ')
@@ -1379,7 +1531,7 @@ function renderSuppliers() {
     return;
   }
   tbody.innerHTML = suppliers.map(function(s, i) {
-    const purchases = db.purchaseInvoices.filter(function(p){ return p.supplierName === s.name; });
+    const purchases = activePurchaseInvoices().filter(function(p){ return p.supplierName === s.name; });
     const total = purchases.reduce(function(sum,inv){ return sum + inv.total; }, 0);
     const invLinks = purchases.length > 0
       ? purchases.map(function(p){ return '<span class="inv-link" onclick="openInvoiceDetail(\'' + p.number + '\')">' + p.number + '</span>'; }).join('')
@@ -1624,8 +1776,8 @@ function renderReports() {
     return true;
   }
 
-  const sales     = db.salesInvoices.filter(matchPeriod);
-  const purchases = db.purchaseInvoices.filter(matchPeriod);
+  const sales     = activeSalesInvoices().filter(matchPeriod);
+  const purchases = activePurchaseInvoices().filter(matchPeriod);
   const returns   = (db.returns || []).filter(matchPeriod);
 
   const totalSales     = sales.reduce((s, i) => s + (i.total || 0), 0);
@@ -1903,7 +2055,7 @@ function paymentStatusBadge(inv, size) {
 }
 
 function getCustomerAccount(customerName) {
-  const invoices = db.salesInvoices.filter(i => i.customerName === customerName);
+  const invoices = activeSalesInvoices().filter(i => i.customerName === customerName);
   const cashInvoices     = invoices.filter(i => (i.paymentType||'cash') === 'cash');
   const deferredInvoices = invoices.filter(i => (i.paymentType||'cash') === 'deferred');
 
@@ -2067,7 +2219,7 @@ function printCustomerAccount() {
 // ============================================================
 
 function getSupplierAccount(supplierName) {
-  const invoices = db.purchaseInvoices.filter(i => i.supplierName === supplierName);
+  const invoices = activePurchaseInvoices().filter(i => i.supplierName === supplierName);
   const cashInvoices     = invoices.filter(i => (i.paymentType||'cash') === 'cash');
   const deferredInvoices = invoices.filter(i => (i.paymentType||'cash') === 'deferred');
 
@@ -2667,10 +2819,10 @@ function printCurrentInvoice() {
 // عرض تفاصيل الفاتورة + تعديلها
 // ============================================================
 function openInvoiceDetail(number) {
-  const inv = db.salesInvoices.find(i=>i.number===number) ||
-              db.purchaseInvoices.find(i=>i.number===number);
+  const inv = activeSalesInvoices().find(i=>i.number===number) ||
+              activePurchaseInvoices().find(i=>i.number===number);
   if(!inv) return;
-  const isSale = !!db.salesInvoices.find(i=>i.number===number);
+  const isSale = !!activeSalesInvoices().find(i=>i.number===number);
 
   // Fill modal
   document.getElementById('detail-inv-number').textContent = number;
@@ -2904,7 +3056,7 @@ function updateBarcodeDatalist(page) {
 
 // فواتير بيع آجلة لم تُسدَّد بالكامل بعد (متبقٍّ > 0)
 function getDeferredInvoicesForCustomer(customerName) {
-  return (db.salesInvoices || []).filter(inv =>
+  return activeSalesInvoices().filter(inv =>
     inv.customerName === customerName &&
     (inv.paymentType || 'cash') === 'deferred' &&
     invoiceBalance(inv).remaining > 0.005);
@@ -3237,7 +3389,7 @@ function calcInventoryByWarehouse() {
   }
 
   // فواتير الشراء تضيف للمستودع المحدد (أو الافتراضي)
-  (db.purchaseInvoices || []).forEach(pinv => {
+  activePurchaseInvoices().forEach(pinv => {
     const whId = pinv.warehouseId || defaultWh;
     if (!whId) return;
     if (!inv[whId]) inv[whId] = {};
@@ -3247,7 +3399,7 @@ function calcInventoryByWarehouse() {
   });
 
   // فواتير البيع تنقص من المستودع المحدد (أو الافتراضي)
-  (db.salesInvoices || []).forEach(sinv => {
+  activeSalesInvoices().forEach(sinv => {
     const whId = sinv.warehouseId || defaultWh;
     if (!whId) return;
     if (!inv[whId]) inv[whId] = {};
@@ -3620,12 +3772,12 @@ function printDamagesReport() {
 // حساب المخزون — يشمل التالف
 function calcInventory() {
   const inv = {};
-  (db.purchaseInvoices || []).forEach(pinv => {
+  activePurchaseInvoices().forEach(pinv => {
     (pinv.lines || []).forEach(l => {
       inv[l.itemId] = (inv[l.itemId] || 0) + (parseFloat(l.qty) || 0);
     });
   });
-  (db.salesInvoices || []).forEach(sinv => {
+  activeSalesInvoices().forEach(sinv => {
     (sinv.lines || []).forEach(l => {
       inv[l.itemId] = (inv[l.itemId] || 0) - (parseFloat(l.qty) || 0);
     });
@@ -3840,7 +3992,7 @@ function loadSupDeferredInvoices() {
 }
 
 function getDeferredInvoicesForSupplier(supplierName) {
-  return (db.purchaseInvoices || []).filter(inv => {
+  return activePurchaseInvoices().filter(inv => {
     if (inv.supplierName !== supplierName) return false;
     if ((inv.paymentType || 'cash') !== 'deferred') return false;
     return getSupInvoiceRemaining(inv, supplierName) > 0.005;
@@ -4329,11 +4481,11 @@ function loadAccountStatement() {
   // فواتير البيع للزبون أو الشراء للمورد
   let invoices = [], payments = [];
   if (isCust || (!type)) {
-    invoices = db.salesInvoices.filter(i => i.customerName === name);
+    invoices = activeSalesInvoices().filter(i => i.customerName === name);
     payments = (db.customerPayments||[]).filter(p => p.customerName === name);
   }
   if (isSupp) {
-    invoices = db.purchaseInvoices.filter(i => i.supplierName === name);
+    invoices = activePurchaseInvoices().filter(i => i.supplierName === name);
     payments = (db.supplierPayments||[]).filter(p => p.supplierName === name);
   }
 
@@ -4456,7 +4608,7 @@ function loadItemStatement() {
   let movements = [];
 
   // مشتريات
-  db.purchaseInvoices.forEach(pinv => {
+  activePurchaseInvoices().forEach(pinv => {
     (pinv.lines||[]).forEach(l => {
       if (l.itemId === item.id) {
         movements.push({
@@ -4471,7 +4623,7 @@ function loadItemStatement() {
   });
 
   // مبيعات
-  db.salesInvoices.forEach(sinv => {
+  activeSalesInvoices().forEach(sinv => {
     (sinv.lines||[]).forEach(l => {
       if (l.itemId === item.id) {
         movements.push({
@@ -4644,7 +4796,7 @@ function renderGlobalSearch(q) {
   let total = 0;
 
   // ── فواتير البيع
-  const sales = db.salesInvoices.filter(i =>
+  const sales = activeSalesInvoices().filter(i =>
     (i.number||'').toLowerCase().includes(lq) ||
     (i.customerName||'').toLowerCase().includes(lq)
   ).slice(0, 4);
@@ -4665,7 +4817,7 @@ function renderGlobalSearch(q) {
   }
 
   // ── فواتير الشراء
-  const purs = db.purchaseInvoices.filter(i =>
+  const purs = activePurchaseInvoices().filter(i =>
     (i.number||'').toLowerCase().includes(lq) ||
     (i.supplierName||'').toLowerCase().includes(lq)
   ).slice(0, 4);
