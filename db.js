@@ -93,19 +93,21 @@ function createTables() {
     );
 
     CREATE TABLE IF NOT EXISTS customers (
-      id      TEXT PRIMARY KEY,
-      name    TEXT,
-      phone   TEXT,
-      address TEXT,
-      balance REAL DEFAULT 0
+      id            TEXT PRIMARY KEY,
+      name          TEXT,
+      phone         TEXT,
+      address       TEXT,
+      balance       REAL DEFAULT 0,
+      creditBalance REAL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS suppliers (
-      id      TEXT PRIMARY KEY,
-      name    TEXT,
-      phone   TEXT,
-      address TEXT,
-      balance REAL DEFAULT 0
+      id            TEXT PRIMARY KEY,
+      name          TEXT,
+      phone         TEXT,
+      address       TEXT,
+      balance       REAL DEFAULT 0,
+      creditBalance REAL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS sales_invoices (
@@ -289,6 +291,9 @@ function migrateSchema() {
     // customers / suppliers — رصيد
     { table: 'customers', column: 'balance', def: "REAL DEFAULT 0" },
     { table: 'suppliers', column: 'balance', def: "REAL DEFAULT 0" },
+    // رصيد إضافي (credit balance) — فائض الدفع الزائد للعميل/المورد
+    { table: 'customers', column: 'creditBalance', def: "REAL DEFAULT 0" },
+    { table: 'suppliers', column: 'creditBalance', def: "REAL DEFAULT 0" },
   ];
 
   for (const m of migrations) {
@@ -426,18 +431,20 @@ function saveAll(data) {
 
     // customers
     db.prepare('DELETE FROM customers').run();
-    const insCus = db.prepare('INSERT INTO customers (id, name, phone, address, balance) VALUES (@id, @name, @phone, @address, @balance)');
+    const insCus = db.prepare('INSERT INTO customers (id, name, phone, address, balance, creditBalance) VALUES (@id, @name, @phone, @address, @balance, @creditBalance)');
     (data.customers || []).forEach(c => insCus.run({
       id: c.id || ('CUS-' + Date.now() + Math.random()),
-      name: c.name || '', phone: c.phone || '', address: c.address || '', balance: c.balance || 0
+      name: c.name || '', phone: c.phone || '', address: c.address || '', balance: c.balance || 0,
+      creditBalance: c.creditBalance || 0
     }));
 
     // suppliers
     db.prepare('DELETE FROM suppliers').run();
-    const insSup = db.prepare('INSERT INTO suppliers (id, name, phone, address, balance) VALUES (@id, @name, @phone, @address, @balance)');
+    const insSup = db.prepare('INSERT INTO suppliers (id, name, phone, address, balance, creditBalance) VALUES (@id, @name, @phone, @address, @balance, @creditBalance)');
     (data.suppliers || []).forEach(s => insSup.run({
       id: s.id || ('SUP-' + Date.now() + Math.random()),
-      name: s.name || '', phone: s.phone || '', address: s.address || '', balance: s.balance || 0
+      name: s.name || '', phone: s.phone || '', address: s.address || '', balance: s.balance || 0,
+      creditBalance: s.creditBalance || 0
     }));
 
     // sales invoices
@@ -572,6 +579,49 @@ function migrateFromJSON(jsonData) {
   }
 }
 
+// ============================================================
+// رصيد إضافي (Credit balance) — منطق الدفع الزائد والخصم التلقائي
+// دوال نقية قابلة للاختبار. المصدر الوحيد لمنطق الرصيد الإضافي؛
+// تعكسه واجهة app.js (renderer) بنفس الدلالة تماماً.
+// ============================================================
+const CREDIT_EPSILON = 0.005;
+
+function roundMoney(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+// عند تسجيل دفعة تتجاوز إجمالي المطلوب على الفواتير المفتوحة:
+// يُطبَّق جزء بمقدار المطلوب على الفواتير، ويتحول الفائض (X) إلى رصيد إضافي.
+// paymentAmount: المبلغ المُدخل (بالدولار)
+// outstanding:   إجمالي المتبقي على كل الفواتير المفتوحة للطرف
+function computeOverpayment(paymentAmount, outstanding) {
+  const pay = Math.max(0, roundMoney(paymentAmount));
+  const due = Math.max(0, roundMoney(outstanding));
+  const appliedToInvoices = Math.min(pay, due);
+  const creditAdded = roundMoney(pay - appliedToInvoices);
+  return {
+    appliedToInvoices: roundMoney(appliedToInvoices),
+    creditAdded,
+    isOverpayment: creditAdded > CREDIT_EPSILON,
+  };
+}
+
+// عند إنشاء فاتورة جديدة لطرف لديه رصيد إضافي:
+// يُخصَم من الرصيد الإضافي أولاً (كلياً أو جزئياً) قبل حساب المتبقي على الفاتورة.
+// creditBalance: الرصيد الإضافي الحالي للطرف
+// invoiceTotal:  إجمالي الفاتورة الجديدة
+// alreadyPaid:   أي دفعة نقدية مُدخلة مع الفاتورة (اختياري)
+function applyCreditToInvoice(creditBalance, invoiceTotal, alreadyPaid = 0) {
+  const credit = Math.max(0, roundMoney(creditBalance));
+  const due    = Math.max(0, roundMoney(roundMoney(invoiceTotal) - roundMoney(alreadyPaid)));
+  const creditApplied = Math.min(credit, due);
+  return {
+    creditApplied:   roundMoney(creditApplied),
+    remainingCredit: roundMoney(credit - creditApplied),
+    amountDue:       roundMoney(due - creditApplied),
+  };
+}
+
 function hasData() {
   try {
     // يعتبر في بيانات لو في فواتير أو زبائن أو موردين — مش items فقط
@@ -588,4 +638,8 @@ function backupTo(destPath) {
   db.backup(destPath);
 }
 
-module.exports = { openDatabase, loadAll, saveAll, migrateFromJSON, hasData, backupTo };
+module.exports = {
+  openDatabase, loadAll, saveAll, migrateFromJSON, hasData, backupTo,
+  // رصيد إضافي — دوال نقية مشتركة مع الواجهة
+  computeOverpayment, applyCreditToInvoice, roundMoney, CREDIT_EPSILON,
+};

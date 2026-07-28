@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "test": "node test/credit-balance.test.js",
     "build": "electron-builder --win --x64",
     "postinstall": "electron-builder install-app-deps"
   },
