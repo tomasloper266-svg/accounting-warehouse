@@ -256,12 +256,8 @@
         المشتريات
       </div>
       <div class="nav-item" data-page="statements-hub" onclick="navigate('statements-hub')">
-        <span class="nav-icon-wrap" aria-hidden="true">📋</span>
-        الكشوفات
-      </div>
-      <div class="nav-item" data-page="reports" onclick="navigate('reports')">
-        <span class="nav-icon-wrap" aria-hidden="true">📄</span>
-        التقارير
+        <span class="nav-icon-wrap" aria-hidden="true">📊</span>
+        التقارير الشاملة
       </div>
       <div class="nav-item" data-page="daily-report" onclick="navigate('daily-report')">
         <span class="nav-icon-wrap" aria-hidden="true">🗓️</span>
@@ -882,6 +878,9 @@
 
     <!-- REPORTS -->
     <div id="page-reports" class="hidden">
+      <div style="margin-bottom:12px">
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للتقارير الشاملة</button>
+      </div>
       <div id="report-print-area">
 
         <!-- رأس الصفحة -->
@@ -2507,17 +2506,22 @@
     </div>
 
     <!-- ============================================================
-         📋 مركز الكشوفات (الصفحة الرئيسية)
+         📊 مركز التقارير الشاملة (الصفحة الرئيسية)
          ============================================================ -->
     <div id="page-statements-hub" class="hidden">
       <div class="page-header">
         <div>
-          <div class="page-title">📋 الكشوفات</div>
-          <div class="page-subtitle">اختر نوع الكشف الذي تريد عرضه</div>
+          <div class="page-title">📊 التقارير الشاملة</div>
+          <div class="page-subtitle">اختر نوع التقرير الذي تريد عرضه</div>
         </div>
       </div>
 
       <div class="stmt-hub-grid">
+        <div class="stmt-hub-card" onclick="navigate('reports')">
+          <div class="stmt-hub-icon">📊</div>
+          <div class="stmt-hub-title">التقرير الدوري</div>
+          <div class="stmt-hub-desc">تقرير المبيعات والمشتريات والأرباح (يومي / شهري / سنوي / مخصص)</div>
+        </div>
         <div class="stmt-hub-card" onclick="navigate('invoices-statement')">
           <div class="stmt-hub-icon">🧾</div>
           <div class="stmt-hub-title">كشف فواتير</div>
@@ -2555,7 +2559,7 @@
           <div class="page-title">🧾 كشف فواتير</div>
           <div class="page-subtitle">جميع فواتير البيع والشراء</div>
         </div>
-        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للتقارير الشاملة</button>
       </div>
       <div class="invoice-table-wrap">
         <table>
@@ -2583,7 +2587,7 @@
           <div class="page-title">💵 كشف دفعات</div>
           <div class="page-subtitle">جميع إيصالات القبض من الزبائن والدفع للموردين</div>
         </div>
-        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للتقارير الشاملة</button>
       </div>
       <div class="invoice-table-wrap">
         <table>
@@ -2611,7 +2615,7 @@
           <div class="page-title">🔒 تسكير حساب</div>
           <div class="page-subtitle">اختر زبونًا أو موردًا لعرض رصيده تمهيدًا لتسويته — الميزة الكاملة قيد التطوير</div>
         </div>
-        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للتقارير الشاملة</button>
       </div>
 
       <div class="wh-action-card" style="margin-bottom:20px">
@@ -2653,7 +2657,7 @@
           <div class="page-title">📊 كشف أرصدة العملاء</div>
           <div class="page-subtitle">رصيد كل زبون ومورد دفعة واحدة</div>
         </div>
-        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للتقارير الشاملة</button>
       </div>
       <div class="invoice-table-wrap">
         <table>
@@ -2681,7 +2685,7 @@
           <div class="page-title">👤 كشف حساب عميل ومادة</div>
           <div class="page-subtitle">كشف حساب زبون أو مورد، أو كشف حركة مادة معيّنة</div>
         </div>
-        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للتقارير الشاملة</button>
       </div>
 
       <!-- تابات التنقل -->
