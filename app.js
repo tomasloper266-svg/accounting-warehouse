@@ -677,11 +677,14 @@ function renderAllInvoices() {
     const party = inv.customerName || inv.supplierName || '—';
     const isSale = inv.type === 'بيع';
     const payBadge = paymentStatusBadge(inv);
+    const creditBadge = inv.creditApplied > 0
+      ? '<span style="font-size:10px;color:#16a34a;font-weight:700;margin-right:4px">💳 ' + fmtUSD(inv.creditApplied) + '</span>'
+      : '';
     return '<div class="invoice-row" onclick="openInvoiceDetail(\'' + num + '\')" style="cursor:pointer">' +
       '<span class="inv-num">' + num + '</span>' +
       '<span class="inv-customer">' + party + '</span>' +
       '<span class="inv-type ' + (isSale ? 'type-sale' : 'type-purchase') + '">' + inv.type + '</span>' +
-      payBadge +
+      payBadge + creditBadge +
       '<span class="inv-total">' + fmtUSD(inv.total) + '</span>' +
       '<span class="inv-date">' + inv.date + '</span>' +
       '</div>';
@@ -967,6 +970,7 @@ function saveSaleInvoice() {
     lines, subtotal, discount, total,
     paidAmount: settledNow, paymentType, priceType,
     taxRate, taxAmount,
+    creditApplied,
     note: saleNote,
     currency: 'USD',
     usdToOld: getRate()
@@ -1136,6 +1140,7 @@ function printInvoice(invNumber) {
     <div class="print-totals-box">
       ${subtotal !== inv.total ? `<div class="print-total-row"><span class="print-total-label">المجموع</span><span class="print-total-value">$${subtotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>` : ''}
       ${discount > 0 ? `<div class="print-total-row"><span class="print-total-label">خصم (${discount}%)</span><span class="print-total-value" style="color:#dc2626">-$${(subtotal*discount/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>` : ''}
+      ${inv.creditApplied > 0 ? `<div class="print-total-row"><span class="print-total-label" style="color:#16a34a;font-weight:800">💳 مدفوع من الرصيد الإضافي</span><span class="print-total-value" style="color:#16a34a">$${inv.creditApplied.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>` : ''}
       <div class="print-total-row print-grand-total">
         <span class="print-total-label">الإجمالي النهائي</span>
         <span class="print-total-value">$${inv.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
@@ -1373,6 +1378,7 @@ function savePurchaseInvoice() {
     lines, subtotal, discount, total,
     paidAmount: settledNow, paymentType,
     shippingCost, shippingAccount:'',
+    creditApplied,
     note: purNote,
     currency:'USD', usdToOld: getRate()
   };
@@ -2378,10 +2384,13 @@ function openCustomerAccount(customerName) {
         const isDeferred = b.isDeferred;
         const rem  = b.remaining;
         const tag  = paymentStatusBadge(inv);
+        const creditNote = inv.creditApplied > 0
+          ? '<br><span style="font-size:10px;color:#16a34a;font-weight:700">💳 خُصم ' + fmtUSD(inv.creditApplied) + ' من الرصيد الإضافي</span>'
+          : '';
         return '<tr onclick="openInvoiceDetail(\'' + inv.number + '\')" style="cursor:pointer">' +
           '<td><span class="inv-num">' + inv.number + '</span></td>' +
           '<td>' + inv.date + '</td>' +
-          '<td>' + tag + '</td>' +
+          '<td>' + tag + creditNote + '</td>' +
           '<td><strong>' + fmtUSD(inv.total) + '</strong></td>' +
           '<td style="color:' + (rem>0?'#dc2626':'#16a34a') + ';font-weight:700">' + (isDeferred ? fmtUSD(rem) : '—') + '</td>' +
           '</tr>';
@@ -2538,13 +2547,16 @@ function openSupplierAccount(supplierName) {
   const invTbody = document.getElementById('sa-invoices-tbody');
   invTbody.innerHTML = acc.invoices.length === 0
     ? '<tr><td colspan="3" style="text-align:center;padding:12px;color:var(--text-muted)">لا توجد فواتير</td></tr>'
-    : acc.invoices.map(inv =>
-        '<tr onclick="openInvoiceDetail(\'' + inv.number + '\')" style="cursor:pointer">' +
+    : acc.invoices.map(inv => {
+        const creditNote = inv.creditApplied > 0
+          ? '<br><span style="font-size:10px;color:#16a34a;font-weight:700">💳 خُصم ' + fmtUSD(inv.creditApplied) + ' من الرصيد الإضافي</span>'
+          : '';
+        return '<tr onclick="openInvoiceDetail(\'' + inv.number + '\')" style="cursor:pointer">' +
         '<td><span class="inv-num">' + inv.number + '</span></td>' +
         '<td>' + inv.date + '</td>' +
-        '<td><strong>' + fmtUSD(inv.total) + '</strong></td>' +
-        '</tr>'
-      ).join('');
+        '<td><strong>' + fmtUSD(inv.total) + '</strong>' + creditNote + '</td>' +
+        '</tr>';
+      }).join('');
 
   // جدول الدفعات
   const payTbody = document.getElementById('sa-payments-tbody');
