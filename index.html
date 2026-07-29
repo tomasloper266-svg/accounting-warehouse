@@ -2362,8 +2362,8 @@
         </div>
         <div class="stmt-hub-card" onclick="navigate('statements')">
           <div class="stmt-hub-icon">👤</div>
-          <div class="stmt-hub-title">كشف حساب عميل</div>
-          <div class="stmt-hub-desc">فواتير ودفعات ورصيد زبون أو مورد معيّن</div>
+          <div class="stmt-hub-title">كشف حساب عميل ومادة</div>
+          <div class="stmt-hub-desc">فواتير ودفعات ورصيد زبون أو مورد، أو حركة مادة معيّنة</div>
         </div>
         <div class="stmt-hub-card" onclick="navigate('account-closing')">
           <div class="stmt-hub-icon">🔒</div>
@@ -2505,73 +2505,53 @@
 
 
     <!-- ============================================================
-         📋 صفحة الكشوفات
+         👤 كشف حساب عميل ومادة
          ============================================================ -->
     <div id="page-statements" class="hidden">
-
-      <!-- رأس الصفحة -->
-      <div style="background:linear-gradient(135deg,#134e4a 0%,#0d9488 60%,#2dd4bf 100%);border-radius:20px;padding:28px 32px;margin-bottom:28px;color:white;position:relative;overflow:hidden;box-shadow:0 8px 32px rgba(13,148,136,.35)">
-        <div style="position:absolute;top:-30px;right:-30px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.06)"></div>
-        <div style="position:absolute;bottom:-50px;left:60px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.04)"></div>
-        <div style="position:relative;display:flex;align-items:center;gap:16px">
-          <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 16px rgba(0,0,0,.15)">📋</div>
-          <div>
-            <div style="font-size:22px;font-weight:800;letter-spacing:-.3px">الكشوفات والتقارير</div>
-            <div style="font-size:13px;opacity:.8;margin-top:2px">كشف حساب زبون أو مورد · كشف حركة مادة</div>
-          </div>
+      <div class="page-header">
+        <div>
+          <div class="page-title">👤 كشف حساب عميل ومادة</div>
+          <div class="page-subtitle">كشف حساب زبون أو مورد، أو كشف حركة مادة معيّنة</div>
         </div>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
       </div>
 
-      <!-- تابات التنقل - full width -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px">
-        <button id="stmt-tab-account" onclick="switchStatementsTab('account')" style="
-          display:flex;align-items:center;justify-content:center;gap:12px;
-          padding:16px 20px;border-radius:16px;border:2px solid #2563eb;cursor:pointer;
-          font-size:15px;font-weight:800;font-family:inherit;width:100%;
-          background:linear-gradient(135deg,#2563eb,#0ea5e9);color:#fff;
-          box-shadow:0 4px 16px rgba(37,99,235,.4);transition:all .25s;
-        "><span style="font-size:22px">👤</span> كشف حساب</button>
-        <button id="stmt-tab-item" onclick="switchStatementsTab('item')" style="
-          display:flex;align-items:center;justify-content:center;gap:12px;
-          padding:16px 20px;border-radius:16px;border:2px solid var(--border-subtle);cursor:pointer;
-          font-size:15px;font-weight:800;font-family:inherit;width:100%;
-          background:var(--surface-primary);color:var(--text-secondary);
-          box-shadow:0 2px 8px rgba(0,0,0,.06);transition:all .25s;
-        "><span style="font-size:22px">📦</span> كشف مادة</button>
+      <!-- تابات التنقل -->
+      <div class="stmt-tabs">
+        <button id="stmt-tab-account" class="stmt-tab active" onclick="switchStatementsTab('account')">
+          <span class="stmt-tab-icon">👤</span> كشف حساب
+        </button>
+        <button id="stmt-tab-item" class="stmt-tab" onclick="switchStatementsTab('item')">
+          <span class="stmt-tab-icon">📦</span> كشف مادة
+        </button>
       </div>
 
       <!-- ===== كشف حساب ===== -->
       <div id="stmt-account-section">
 
-        <!-- بطاقة البحث - كاملة العرض -->
-        <div class="wh-action-card" style="margin-bottom:20px;width:100%">
-          <div class="wh-action-header" style="background:linear-gradient(135deg,#dbeafe,#eff6ff)">
-            <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
-              <div style="display:flex;align-items:center;gap:12px">
-                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(37,99,235,.35)">👤</div>
-                <div>
-                  <div style="font-size:15px;font-weight:800;color:#1e3a8a">كشف حساب زبون أو مورد</div>
-                  <div style="font-size:11px;color:#3b82f6;margin-top:1px">جميع الفواتير والدفعات والرصيد المتبقي</div>
-                </div>
+        <div class="wh-action-card" style="margin-bottom:20px">
+          <div class="wh-action-header">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--brand-600),var(--accent-500));display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>
+              <div>
+                <div style="font-size:15px;font-weight:800;color:var(--text-primary)">كشف حساب زبون أو مورد</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:1px">جميع الفواتير والدفعات والرصيد المتبقي</div>
               </div>
             </div>
           </div>
           <div style="padding:20px">
             <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:end">
               <div>
-                <label class="form-label" style="font-weight:700;font-size:13px">اسم الزبون أو المورد</label>
-                <input type="text" id="stmt-person-name" class="input" placeholder="اكتب الاسم للبحث..." list="stmt-person-datalist" style="margin-top:8px;width:100%;font-size:14px;padding:11px 14px">
+                <label class="form-label">اسم الزبون أو المورد</label>
+                <input type="text" id="stmt-person-name" class="input" placeholder="اكتب الاسم للبحث..." list="stmt-person-datalist" style="margin-top:8px;width:100%">
                 <datalist id="stmt-person-datalist"></datalist>
               </div>
-              <button class="btn btn-primary btn-lg" onclick="loadAccountStatement()" style="white-space:nowrap;gap:8px;border-radius:12px;font-weight:700;padding:12px 36px;font-size:14px">
-                🔍 عرض الكشف
-              </button>
+              <button class="btn btn-primary btn-lg" onclick="loadAccountStatement()">🔍 عرض الكشف</button>
             </div>
           </div>
         </div>
 
-        <!-- منطقة النتيجة - كاملة العرض -->
-        <div id="stmt-account-result" style="width:100%;background:var(--surface-primary);border-radius:18px;border:1.5px solid var(--border-subtle);box-shadow:0 4px 16px rgba(0,0,0,.05);min-height:320px;display:flex;align-items:center;justify-content:center">
+        <div id="stmt-account-result" style="width:100%;background:var(--bg-card);border-radius:var(--r-xl);border:1px solid var(--border);box-shadow:var(--shadow-sm);min-height:320px;display:flex;align-items:center;justify-content:center">
           <div style="text-align:center;color:var(--text-muted);padding:60px 40px">
             <div style="font-size:72px;margin-bottom:20px;opacity:.15">👤</div>
             <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text-secondary)">ابحث عن زبون أو مورد</div>
@@ -2581,39 +2561,31 @@
       </div>
 
       <!-- ===== كشف مادة ===== -->
-      <div id="stmt-item-section" style="display:none">
+      <div id="stmt-item-section" class="hidden">
 
-        <!-- بطاقة البحث - كاملة العرض -->
-        <div class="wh-action-card" style="margin-bottom:20px;width:100%">
-          <div class="wh-action-header" style="background:linear-gradient(135deg,#ede9fe,#f5f3ff)">
+        <div class="wh-action-card" style="margin-bottom:20px">
+          <div class="wh-action-header">
             <div style="display:flex;align-items:center;gap:12px">
-              <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 12px rgba(124,58,237,.35)">📦</div>
+              <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--accent-600),var(--accent-500));display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>
               <div>
-                <div style="font-size:15px;font-weight:800;color:#3b0764">كشف حركة مادة</div>
-                <div style="font-size:11px;color:#7c3aed;margin-top:1px">شراء · بيع · مرتجعات · ربح · مخزون</div>
+                <div style="font-size:15px;font-weight:800;color:var(--text-primary)">كشف حركة مادة</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:1px">شراء · بيع · مرتجعات · ربح · مخزون</div>
               </div>
             </div>
           </div>
           <div style="padding:20px">
             <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:end">
               <div>
-                <label class="form-label" style="font-weight:700;font-size:13px">اسم المادة أو رقمها</label>
-                <input type="text" id="stmt-item-name" class="input" placeholder="اكتب اسم المادة..." list="stmt-item-datalist" style="margin-top:8px;width:100%;font-size:14px;padding:11px 14px">
+                <label class="form-label">اسم المادة أو رقمها</label>
+                <input type="text" id="stmt-item-name" class="input" placeholder="اكتب اسم المادة..." list="stmt-item-datalist" style="margin-top:8px;width:100%">
                 <datalist id="stmt-item-datalist"></datalist>
               </div>
-              <button onclick="loadItemStatement()" style="
-                display:inline-flex;align-items:center;gap:8px;
-                padding:12px 36px;border-radius:12px;border:none;cursor:pointer;white-space:nowrap;
-                background:linear-gradient(135deg,#7c3aed,#8b5cf6);color:#fff;
-                font-size:14px;font-weight:700;font-family:inherit;
-                box-shadow:0 4px 14px rgba(124,58,237,.4);
-              ">🔍 عرض الكشف</button>
+              <button class="btn btn-primary btn-lg" onclick="loadItemStatement()">🔍 عرض الكشف</button>
             </div>
           </div>
         </div>
 
-        <!-- منطقة النتيجة - كاملة العرض -->
-        <div id="stmt-item-result" style="width:100%;background:var(--surface-primary);border-radius:18px;border:1.5px solid var(--border-subtle);box-shadow:0 4px 16px rgba(0,0,0,.05);min-height:320px;display:flex;align-items:center;justify-content:center">
+        <div id="stmt-item-result" style="width:100%;background:var(--bg-card);border-radius:var(--r-xl);border:1px solid var(--border);box-shadow:var(--shadow-sm);min-height:320px;display:flex;align-items:center;justify-content:center">
           <div style="text-align:center;color:var(--text-muted);padding:60px 40px">
             <div style="font-size:72px;margin-bottom:20px;opacity:.15">📦</div>
             <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text-secondary)">ابحث عن مادة</div>

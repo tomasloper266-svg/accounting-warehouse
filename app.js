@@ -4562,12 +4562,10 @@ function renderStatements() {
 
 function switchStatementsTab(tab) {
   statementsTab = tab;
-  document.getElementById('stmt-tab-account').style.background = tab==='account' ? 'linear-gradient(135deg,#0ea5e9,#3b82f6)' : 'var(--surface-secondary)';
-  document.getElementById('stmt-tab-account').style.color = tab==='account' ? '#fff' : 'var(--text-primary)';
-  document.getElementById('stmt-tab-item').style.background = tab==='item' ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'var(--surface-secondary)';
-  document.getElementById('stmt-tab-item').style.color = tab==='item' ? '#fff' : 'var(--text-primary)';
-  document.getElementById('stmt-account-section').style.display = tab==='account' ? 'block' : 'none';
-  document.getElementById('stmt-item-section').style.display = tab==='item' ? 'block' : 'none';
+  document.getElementById('stmt-tab-account')?.classList.toggle('active', tab === 'account');
+  document.getElementById('stmt-tab-item')?.classList.toggle('active', tab === 'item');
+  document.getElementById('stmt-account-section')?.classList.toggle('hidden', tab !== 'account');
+  document.getElementById('stmt-item-section')?.classList.toggle('hidden', tab !== 'item');
 }
 
 function renderStatementsTab() {
@@ -4642,13 +4640,13 @@ function loadAccountStatement() {
     </div>
 
     <!-- جدول الفواتير -->
-    <div style="font-size:14px;font-weight:700;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border-subtle)">
+    <div style="font-size:14px;font-weight:700;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border)">
       🧾 الفواتير
     </div>
     <div style="overflow-x:auto;margin-bottom:20px">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
-          <tr style="background:var(--surface-secondary)">
+          <tr style="background:var(--bg-table-hd)">
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">رقم الفاتورة</th>
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">التاريخ</th>
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">المواد</th>
@@ -4660,7 +4658,7 @@ function loadAccountStatement() {
           ${invoices.length === 0
             ? `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-muted)">لا توجد فواتير</td></tr>`
             : invoices.map(inv => `
-            <tr style="border-bottom:1px solid var(--border-subtle)">
+            <tr style="border-bottom:1px solid var(--border)">
               <td style="padding:8px 12px;font-weight:600;color:#3b82f6">${inv.number||'—'}</td>
               <td style="padding:8px 12px;color:var(--text-muted)">${inv.date||'—'}</td>
               <td style="padding:8px 12px">${(inv.lines||[]).length} مادة</td>
@@ -4677,13 +4675,13 @@ function loadAccountStatement() {
     </div>
 
     <!-- جدول الدفعات -->
-    <div style="font-size:14px;font-weight:700;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border-subtle)">
+    <div style="font-size:14px;font-weight:700;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border)">
       💵 الدفعات المسجلة
     </div>
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
-          <tr style="background:var(--surface-secondary)">
+          <tr style="background:var(--bg-table-hd)">
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">التاريخ</th>
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">المبلغ</th>
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">ملاحظة</th>
@@ -4693,7 +4691,7 @@ function loadAccountStatement() {
           ${payments.length === 0
             ? `<tr><td colspan="3" style="padding:20px;text-align:center;color:var(--text-muted)">لا توجد دفعات مسجلة</td></tr>`
             : payments.map(p => `
-            <tr style="border-bottom:1px solid var(--border-subtle)">
+            <tr style="border-bottom:1px solid var(--border)">
               <td style="padding:8px 12px;color:var(--text-muted)">${p.date||'—'}</td>
               <td style="padding:8px 12px;font-weight:700;color:#10b981">${fmtUSD(parseFloat(p.amount)||0)}</td>
               <td style="padding:8px 12px;color:var(--text-muted)">${p.note||p.description||'—'}</td>
@@ -4818,13 +4816,13 @@ function loadItemStatement() {
     </div>
 
     <!-- جدول الحركات -->
-    <div style="font-size:14px;font-weight:700;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border-subtle)">
+    <div style="font-size:14px;font-weight:700;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border)">
       📋 سجل حركة المادة (${movements.length} حركة)
     </div>
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:13px">
         <thead>
-          <tr style="background:var(--surface-secondary)">
+          <tr style="background:var(--bg-table-hd)">
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">التاريخ</th>
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">النوع</th>
             <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">المرجع</th>
@@ -4845,7 +4843,7 @@ function loadItemStatement() {
                   'return-purchase':{label:'رد شراء 🔄',bg:'#fee2e2',color:'#991b1b',sign:'-'}
                 };
                 const t = typeMap[m.type] || {label:m.type, bg:'#f1f5f9', color:'#64748b', sign:''};
-                return `<tr style="border-bottom:1px solid var(--border-subtle)">
+                return `<tr style="border-bottom:1px solid var(--border)">
                   <td style="padding:8px 12px;color:var(--text-muted)">${m.date||'—'}</td>
                   <td style="padding:8px 12px">
                     <span style="background:${t.bg};color:${t.color};padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${t.label}</span>
