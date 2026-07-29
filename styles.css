@@ -690,6 +690,59 @@ html.dark .stmt-hub-icon { background: linear-gradient(135deg, rgba(99,102,241,.
 }
 .stmt-tab-icon { font-size: 18px; }
 
+/* Item statement result — نتائج كشف حركة مادة (يستخدمها loadItemStatement في app.js) */
+.stmt-item-result-panel {
+  width: 100%; background: var(--bg-card); border-radius: var(--r-xl);
+  border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+  min-height: 320px; padding: var(--s5);
+}
+.stmt-item-result-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 280px; text-align: center; color: var(--text-muted); padding: var(--s8) var(--s6);
+}
+.stmt-item-head {
+  display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap;
+  background: linear-gradient(135deg, var(--brand-900), var(--brand-800));
+  border-radius: var(--r-lg); padding: var(--s4) var(--s5); margin-bottom: var(--s5);
+  color: #fff;
+}
+.stmt-item-head-icon { font-size: 36px; line-height: 1; }
+.stmt-item-head-name { font-size: 18px; font-weight: 800; }
+.stmt-item-head-meta { font-size: 12px; opacity: .7; margin-top: 2px; }
+.stmt-item-head-stock {
+  margin-inline-start: auto; text-align: center;
+  background: rgba(255,255,255,.15); border-radius: var(--r-md);
+  padding: var(--s2) var(--s4);
+}
+.stmt-item-head-stock-label { font-size: 11px; opacity: .8; }
+.stmt-item-head-stock-value { font-size: 24px; font-weight: 800; }
+.stmt-item-head-stock-unit { font-size: 11px; opacity: .7; }
+
+.stmt-item-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s3);
+  margin-bottom: var(--s5);
+}
+@media (max-width: 900px) { .stmt-item-stats { grid-template-columns: repeat(2, 1fr); } }
+.stmt-item-stat {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--s4); text-align: center;
+}
+.stmt-item-stat-label { font-size: 11px; font-weight: 700; margin-bottom: var(--s1); }
+.stmt-item-stat-value { font-size: 18px; font-weight: 800; }
+.stmt-item-stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.stmt-item-table-title {
+  font-size: 14px; font-weight: 700; margin-bottom: var(--s2); padding-bottom: var(--s2);
+  border-bottom: 2px solid var(--border);
+}
+.stmt-item-table-wrap { width: 100%; overflow-x: auto; }
+.stmt-item-table-wrap table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 13px; }
+.stmt-item-table-wrap th {
+  padding: var(--s2) var(--s3); text-align: right; font-size: 11px;
+  color: var(--text-muted); white-space: nowrap;
+}
+
+
 
 /* ══════════════════════════════════════════
    12. INVOICE FORM
