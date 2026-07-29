@@ -4780,56 +4780,54 @@ function loadItemStatement() {
 
   el.innerHTML = `
     <!-- رأس المادة -->
-    <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:12px;padding:16px 20px;margin-bottom:20px;color:white;display:flex;align-items:center;gap:14px">
-      <div style="font-size:36px">📦</div>
+    <div class="stmt-item-head">
+      <div class="stmt-item-head-icon">📦</div>
       <div>
-        <div style="font-size:18px;font-weight:800">${item.name}</div>
-        <div style="font-size:12px;opacity:.7">${item.id} · ${item.type} · ${item.unit}</div>
+        <div class="stmt-item-head-name">${item.name}</div>
+        <div class="stmt-item-head-meta">${item.id} · ${item.type} · ${item.unit}</div>
       </div>
-      <div style="margin-right:auto;text-align:center;background:rgba(255,255,255,.15);padding:10px 18px;border-radius:10px">
-        <div style="font-size:11px;opacity:.8">المخزون الحالي</div>
-        <div style="font-size:24px;font-weight:800">${currentStock}</div>
-        <div style="font-size:11px;opacity:.7">${item.unit}</div>
+      <div class="stmt-item-head-stock">
+        <div class="stmt-item-head-stock-label">المخزون الحالي</div>
+        <div class="stmt-item-head-stock-value">${currentStock}</div>
+        <div class="stmt-item-head-stock-unit">${item.unit}</div>
       </div>
     </div>
 
     <!-- إحصائيات -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-      <div style="background:#f0fdf4;border-radius:12px;padding:14px;text-align:center">
-        <div style="font-size:11px;color:#10b981;font-weight:700;margin-bottom:4px">إجمالي المشتريات</div>
-        <div style="font-size:20px;font-weight:800;color:#065f46">${totalBought}</div>
-        <div style="font-size:11px;color:#64748b">${item.unit}</div>
+    <div class="stmt-item-stats">
+      <div class="stmt-item-stat" style="background:#f0fdf4">
+        <div class="stmt-item-stat-label" style="color:#10b981">إجمالي المشتريات</div>
+        <div class="stmt-item-stat-value" style="color:#065f46">${totalBought}</div>
+        <div class="stmt-item-stat-sub">${item.unit}</div>
       </div>
-      <div style="background:#eff6ff;border-radius:12px;padding:14px;text-align:center">
-        <div style="font-size:11px;color:#3b82f6;font-weight:700;margin-bottom:4px">إجمالي المبيعات</div>
-        <div style="font-size:20px;font-weight:800;color:#1d4ed8">${totalSold}</div>
-        <div style="font-size:11px;color:#64748b">${item.unit}</div>
+      <div class="stmt-item-stat" style="background:#eff6ff">
+        <div class="stmt-item-stat-label" style="color:#3b82f6">إجمالي المبيعات</div>
+        <div class="stmt-item-stat-value" style="color:#1d4ed8">${totalSold}</div>
+        <div class="stmt-item-stat-sub">${item.unit}</div>
       </div>
-      <div style="background:#faf5ff;border-radius:12px;padding:14px;text-align:center">
-        <div style="font-size:11px;color:#8b5cf6;font-weight:700;margin-bottom:4px">إيرادات البيع</div>
-        <div style="font-size:16px;font-weight:800;color:#6d28d9">${fmtUSD(totalRevenue)}</div>
+      <div class="stmt-item-stat" style="background:#faf5ff">
+        <div class="stmt-item-stat-label" style="color:#8b5cf6">إيرادات البيع</div>
+        <div class="stmt-item-stat-value" style="color:#6d28d9">${fmtUSD(totalRevenue)}</div>
       </div>
-      <div style="background:${profit>=0?'#f0fdf4':'#fef2f2'};border-radius:12px;padding:14px;text-align:center">
-        <div style="font-size:11px;color:${profit>=0?'#10b981':'#ef4444'};font-weight:700;margin-bottom:4px">صافي الربح</div>
-        <div style="font-size:16px;font-weight:800;color:${profit>=0?'#065f46':'#dc2626'}">${fmtUSD(profit)}</div>
+      <div class="stmt-item-stat" style="background:${profit>=0?'#f0fdf4':'#fef2f2'}">
+        <div class="stmt-item-stat-label" style="color:${profit>=0?'#10b981':'#ef4444'}">صافي الربح</div>
+        <div class="stmt-item-stat-value" style="color:${profit>=0?'#065f46':'#dc2626'}">${fmtUSD(profit)}</div>
       </div>
     </div>
 
     <!-- جدول الحركات -->
-    <div style="font-size:14px;font-weight:700;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--border)">
-      📋 سجل حركة المادة (${movements.length} حركة)
-    </div>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <div class="stmt-item-table-title">📋 سجل حركة المادة (${movements.length} حركة)</div>
+    <div class="stmt-item-table-wrap">
+      <table>
         <thead>
           <tr style="background:var(--bg-table-hd)">
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">التاريخ</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">النوع</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">المرجع</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">الطرف</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">الكمية</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">السعر</th>
-            <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--text-muted)">الإجمالي</th>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th>المرجع</th>
+            <th>الطرف</th>
+            <th>الكمية</th>
+            <th>السعر</th>
+            <th>الإجمالي</th>
           </tr>
         </thead>
         <tbody>
