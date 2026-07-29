@@ -434,7 +434,7 @@ function fmt(n) { return fmtOld(n); }
 // ============================================================
 // ROUTER
 // ============================================================
-const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','statements-hub','invoices-statement','payments-statement','account-closing','customer-balances','trash'];
+const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','statements-hub','invoices-statement','payments-statement','account-closing','customer-balances','trash','daily-report'];
 let currentPage = 'dashboard';
 
 function navigate(page) {
@@ -472,6 +472,7 @@ function render(page) {
     case 'account-closing': renderAccountClosing(); break;
     case 'customer-balances': renderCustomerBalances(); break;
     case 'trash': renderTrash(); break;
+    case 'daily-report': renderDailyReport(); break;
   }
 }
 
@@ -2000,6 +2001,215 @@ function printReport() {
 <head>
 <meta charset="UTF-8">
 <title>تقرير</title>
+<style>
+  body { font-family:'Segoe UI',Tahoma,Arial,sans-serif; margin:0; padding:20px; color:#1a1a1a; direction:rtl; }
+  h1 { font-size:20px; color:#1F3864; margin-bottom:4px; }
+  .sub { font-size:12px; color:#64748b; margin-bottom:20px; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
+  .kpi { background:#f0f4ff; border-radius:8px; padding:12px; text-align:center; }
+  .kpi-label { font-size:11px; color:#64748b; margin-bottom:4px; }
+  .kpi-value { font-size:18px; font-weight:700; color:#1F3864; }
+  .kpi-sub { font-size:11px; color:#64748b; }
+  table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+  thead th { background:#1F3864; color:white; padding:8px; font-size:12px; text-align:right; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  tbody td { padding:7px 8px; border-bottom:1px solid #e2e8f0; font-size:12px; }
+  tbody tr:nth-child(even) { background:#f8fafc; }
+  h3 { font-size:14px; color:#1F3864; margin:16px 0 8px; }
+  .footer { text-align:center; font-size:11px; color:#94a3b8; margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; }
+  @media print { body { padding:10px; } }
+</style>
+</head>
+<body>
+${area.innerHTML}
+<div class="footer">تم إنشاء التقرير بواسطة برنامج المحاسبة والمستودعات — ${new Date().toLocaleDateString('ar-SY')}</div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`);
+  win.document.close();
+}
+
+
+// ============================================================
+// التقرير اليومي الشامل (Daily Comprehensive Report)
+// ============================================================
+
+// تكلفة البضاعة المباعة لأسطر فاتورة — نفس منهجية كشف حركة المادة
+// (renderItemStatement: totalCost = Σ qty × item.cost). نعيد استخدامها هنا
+// بدل إعادة تطبيق منطق كلفة جديد.
+function saleLinesCOGS(lines) {
+  return (lines || []).reduce((s, l) => {
+    const item = db.items.find(it => it.id === l.itemId);
+    return s + (parseFloat(l.qty) || 0) * (item?.cost || 0);
+  }, 0);
+}
+
+function dailyReportToday() {
+  const el = document.getElementById('daily-report-date');
+  if (el) el.value = new Date().toISOString().split('T')[0];
+  renderDailyReport();
+}
+
+function renderDailyReport() {
+  const dateInput = document.getElementById('daily-report-date');
+  const day = (dateInput && dateInput.value) || new Date().toISOString().split('T')[0];
+  if (dateInput && !dateInput.value) dateInput.value = day;
+
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const fmtTime = (iso) => { try { return new Date(iso).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return '—'; } };
+
+  // ── فواتير اليوم (النشطة فقط) ──
+  const sales     = activeSalesInvoices().filter(i => i.date === day);
+  const purchases = activePurchaseInvoices().filter(i => i.date === day);
+  const salesTotal     = sales.reduce((s, i) => s + (i.total || 0), 0);
+  const purchasesTotal = purchases.reduce((s, i) => s + (i.total || 0), 0);
+
+  // ── المرتجعات ──
+  const returns           = (db.returns || []).filter(r => r.date === day);
+  const salesReturns      = returns.filter(r => r.type === 'sale');
+  const returnsTotal      = returns.reduce((s, r) => s + (r.total || 0), 0);
+  const salesReturnsTotal = salesReturns.reduce((s, r) => s + (r.total || 0), 0);
+
+  // ── الدفعات (مقبوضات من الزبائن / مدفوعات للموردين) ──
+  const paymentsIn  = (db.customerPayments || []).filter(p => p.date === day);
+  const paymentsOut = (db.supplierPayments || []).filter(p => p.date === day);
+  const paymentsInTotal  = paymentsIn.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+  const paymentsOutTotal = paymentsOut.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+
+  // ── صافي الربح/الخسارة: الإيراد − COGS − المصاريف ──
+  // COGS بنفس منطق كشف حركة المادة؛ نخصم أيضاً كلفة المرتجعات المباعة.
+  const cogsSales        = sales.reduce((s, inv) => s + saleLinesCOGS(inv.lines), 0);
+  const cogsSalesReturns = salesReturns.reduce((s, r) => s + saleLinesCOGS(r.lines), 0);
+  const netRevenue = salesTotal - salesReturnsTotal;
+  const netCOGS    = cogsSales - cogsSalesReturns;
+  const expenses   = 0; // لا يوجد باب مصاريف مستقل في البرنامج حالياً
+  const netProfit  = netRevenue - netCOGS - expenses;
+
+  // ── بطاقات KPI ──
+  setText('daily-sales-total', fmtUSD(salesTotal));
+  setText('daily-sales-count', sales.length + ' فاتورة');
+  setText('daily-purchases-total', fmtUSD(purchasesTotal));
+  setText('daily-purchases-count', purchases.length + ' فاتورة');
+  setText('daily-payments-in', fmtUSD(paymentsInTotal));
+  setText('daily-payments-in-count', paymentsIn.length + ' دفعة');
+  setText('daily-payments-out', fmtUSD(paymentsOutTotal));
+  setText('daily-payments-out-count', paymentsOut.length + ' دفعة');
+  setText('daily-returns-total', fmtUSD(returnsTotal));
+  setText('daily-returns-count', returns.length + ' مرتجع');
+
+  setText('daily-net-profit', fmtUSD(netProfit));
+  setText('daily-net-profit-old', fmtOld(usdToOld(netProfit)));
+  const profitCard = document.getElementById('daily-profit-card');
+  if (profitCard) {
+    profitCard.style.background = netProfit >= 0
+      ? 'linear-gradient(135deg,#10b981,#059669)'
+      : 'linear-gradient(135deg,#ef4444,#dc2626)';
+    profitCard.style.boxShadow = netProfit >= 0
+      ? '0 4px 16px rgba(16,185,129,.3)'
+      : '0 4px 16px rgba(239,68,68,.3)';
+  }
+
+  // ── تفصيل الربح/الخسارة ──
+  setText('daily-pl-revenue', fmtUSD(netRevenue));
+  setText('daily-pl-cogs', '− ' + fmtUSD(netCOGS));
+  setText('daily-pl-expenses', '− ' + fmtUSD(expenses));
+  setText('daily-pl-expenses-note', '(غير مسجّلة في البرنامج)');
+  const netEl = document.getElementById('daily-pl-net');
+  if (netEl) { netEl.textContent = fmtUSD(netProfit); netEl.style.color = netProfit >= 0 ? '#16a34a' : '#dc2626'; }
+
+  // ── جدول فواتير البيع ──
+  const salesTbody = document.getElementById('daily-sales-tbody');
+  if (salesTbody) {
+    salesTbody.innerHTML = sales.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد فواتير بيع في هذا اليوم</td></tr>'
+      : sales.map(inv => `<tr onclick="openInvoiceDetail('${inv.number}')" style="cursor:pointer">
+          <td><span class="inv-num">${inv.number}</span></td>
+          <td style="font-weight:500">${inv.customerName || '—'}</td>
+          <td style="text-align:center">${paymentStatusBadge(inv, 'lg')}</td>
+          <td style="text-align:left"><strong style="color:#0ea5e9">${fmtUSD(inv.total)}</strong></td>
+        </tr>`).join('');
+  }
+
+  // ── جدول فواتير الشراء ──
+  const purTbody = document.getElementById('daily-purchases-tbody');
+  if (purTbody) {
+    purTbody.innerHTML = purchases.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد فواتير شراء في هذا اليوم</td></tr>'
+      : purchases.map(inv => `<tr onclick="openInvoiceDetail('${inv.number}')" style="cursor:pointer">
+          <td><span class="inv-num">${inv.number}</span></td>
+          <td style="font-weight:500">${inv.supplierName || '—'}</td>
+          <td style="text-align:center">${paymentStatusBadge(inv, 'lg')}</td>
+          <td style="text-align:left"><strong style="color:#f59e0b">${fmtUSD(inv.total)}</strong></td>
+        </tr>`).join('');
+  }
+
+  // ── جدول المقبوضات ──
+  const inTbody = document.getElementById('daily-payments-in-tbody');
+  if (inTbody) {
+    inTbody.innerHTML = paymentsIn.length === 0
+      ? '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد مقبوضات في هذا اليوم</td></tr>'
+      : paymentsIn.map(p => `<tr>
+          <td style="font-weight:500">${p.customerName || '—'}</td>
+          <td style="color:var(--text-muted)">${p.linkedInvoice || '—'}</td>
+          <td style="text-align:left"><strong style="color:#16a34a">${fmtUSD(parseFloat(p.amount) || 0)}</strong></td>
+        </tr>`).join('');
+  }
+
+  // ── جدول المدفوعات ──
+  const outTbody = document.getElementById('daily-payments-out-tbody');
+  if (outTbody) {
+    outTbody.innerHTML = paymentsOut.length === 0
+      ? '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد مدفوعات في هذا اليوم</td></tr>'
+      : paymentsOut.map(p => `<tr>
+          <td style="font-weight:500">${p.supplierName || '—'}</td>
+          <td style="color:var(--text-muted)">${p.linkedInvoice || '—'}</td>
+          <td style="text-align:left"><strong style="color:#dc2626">${fmtUSD(parseFloat(p.amount) || 0)}</strong></td>
+        </tr>`).join('');
+  }
+
+  // ── التغييرات: مرتجعات + حذف فواتير في هذا اليوم ──
+  const deletedSales     = (db.salesInvoices || []).filter(i => i.deletedAt && String(i.deletedAt).split('T')[0] === day);
+  const deletedPurchases = (db.purchaseInvoices || []).filter(i => i.deletedAt && String(i.deletedAt).split('T')[0] === day);
+
+  const changeRows = [];
+  returns.forEach(r => changeRows.push({
+    kind: r.type === 'sale' ? '🔄 مرتجع بيع' : '🔄 مرتجع شراء',
+    ref: r.number || '—', party: r.party || '—', time: '—', color: '#8b5cf6', value: r.total || 0
+  }));
+  deletedSales.forEach(inv => changeRows.push({
+    kind: '🗑️ حذف فاتورة بيع', ref: inv.number, party: inv.customerName || '—',
+    time: fmtTime(inv.deletedAt), color: '#dc2626', value: inv.total || 0
+  }));
+  deletedPurchases.forEach(inv => changeRows.push({
+    kind: '🗑️ حذف فاتورة شراء', ref: inv.number, party: inv.supplierName || '—',
+    time: fmtTime(inv.deletedAt), color: '#dc2626', value: inv.total || 0
+  }));
+
+  const changesTbody = document.getElementById('daily-changes-tbody');
+  if (changesTbody) {
+    changesTbody.innerHTML = changeRows.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">لا توجد تغييرات مسجّلة في هذا اليوم</td></tr>'
+      : changeRows.map(c => `<tr>
+          <td style="font-weight:600;color:${c.color}">${c.kind}</td>
+          <td><span class="inv-num">${c.ref}</span></td>
+          <td>${c.party}</td>
+          <td style="color:var(--text-muted)">${c.time}</td>
+          <td style="text-align:left"><strong>${fmtUSD(c.value)}</strong></td>
+        </tr>`).join('');
+  }
+  setText('daily-changes-note', 'ملاحظة: يعرض هذا القسم المرتجعات وحذف الفواتير في هذا اليوم. تعديلات الفواتير لا تُسجَّل في قاعدة البيانات الحالية (لا يوجد سجل تدقيق) لذلك لا يمكن عرضها.');
+
+  setText('daily-report-title', 'تقرير يوم — ' + day);
+}
+
+// طباعة التقرير اليومي — نفس آلية printReport (نافذة جديدة + نفس ستايل الطباعة)
+function printDailyReport() {
+  const area = document.getElementById('daily-print-area');
+  if (!area) return;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>التقرير اليومي الشامل</title>
 <style>
   body { font-family:'Segoe UI',Tahoma,Arial,sans-serif; margin:0; padding:20px; color:#1a1a1a; direction:rtl; }
   h1 { font-size:20px; color:#1F3864; margin-bottom:4px; }
