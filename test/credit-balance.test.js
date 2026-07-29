@@ -152,6 +152,94 @@ test('المورد: دفع 200 زائد → رصيد 200، ثم فاتورة ش�
 });
 
 // ------------------------------------------------------------
+// 3.5) سيناريو كشف الحساب — دفعات متعددة من المودال وفائض للرصيد
+// يعكس تدفق addCustomerPayment / addSupplierPayment (الربط التلقائي + تحويل الفائض)
+// ------------------------------------------------------------
+console.log('\n→ سيناريو كشف الحساب (دفعات متعددة + فائض)');
+
+// محاكاة invoiceBalance من app.js لفاتورة آجلة
+function simInvoiceBalance(inv, payments) {
+  const total   = inv.total || 0;
+  const deposit = parseFloat(inv.paidAmount) || 0;
+  const later = payments
+    .filter(p => p.linkedInvoice === inv.number)
+    .reduce((s, p) => s + (parseFloat(p.amount) || 0) - (parseFloat(p.creditAdded) || 0) + (parseFloat(p.discountOnPayment) || 0), 0);
+  const paid = deposit + later;
+  const remaining = Math.max(0, roundMoney(total - paid));
+  return { total, paid: roundMoney(paid), remaining, closed: remaining <= 0.005 };
+}
+
+// محاكاة getCustomerAccount.remaining
+function simAccountRemaining(invoices, payments) {
+  const totalDeferred  = invoices.reduce((s, i) => s + (i.total || 0), 0);
+  const paidOnDeferred = invoices.reduce((s, i) => s + (parseFloat(i.paidAmount) || 0), 0);
+  const applied = payments.reduce((s, p) =>
+    s + (parseFloat(p.amount) || 0) - (parseFloat(p.creditAdded) || 0) + (parseFloat(p.discountOnPayment) || 0), 0);
+  return Math.max(0, roundMoney(totalDeferred - paidOnDeferred - applied));
+}
+
+// محاكاة addCustomerPayment / addSupplierPayment (المستخدم يوافق على حفظ الفائض)
+function addAccountPayment(party, invoices, payments, amount) {
+  const outstanding = simAccountRemaining(invoices, payments);
+  const over = computeOverpayment(amount, outstanding);
+  const creditAdded = over.isOverpayment ? over.creditAdded : 0;
+  const open = invoices
+    .filter(inv => simInvoiceBalance(inv, payments).remaining > 0.005)
+    .sort((a, b) => (new Date(a.date) - new Date(b.date)) || String(a.number).localeCompare(String(b.number)));
+  const linkedInvoice = open.length ? open[0].number : '';
+  payments.push({ amount, creditAdded, linkedInvoice });
+  if (creditAdded > 0.005) {
+    party.creditBalance = roundMoney((party.creditBalance || 0) + creditAdded);
+  }
+  return { creditAdded, linkedInvoice };
+}
+
+test('الزبون ali: دفعات 2.10 ثم 3.00 ثم 3.00 على فاتورة 5.10 — المتبقي يتحدّث والفائض 3.00 يصير رصيداً', () => {
+  const customer = { name: 'ali', balance: 5.10, creditBalance: 0 };
+  const invoices = [{ number: 'INV-001', date: '2026-07-01', total: 5.10, paidAmount: 0, paymentType: 'deferred' }];
+  const payments = [];
+
+  // الدفعة 1: 2.10 — تُربط بـ INV-001 → المتبقي 3.00 (جزئي)
+  const p1 = addAccountPayment(customer, invoices, payments, 2.10);
+  assert.strictEqual(p1.linkedInvoice, 'INV-001');
+  assert.strictEqual(p1.creditAdded, 0);
+  assert.strictEqual(simInvoiceBalance(invoices[0], payments).remaining, 3.00, 'بعد الدفعة الأولى المتبقي 3.00');
+
+  // الدفعة 2: 3.00 — تُربط بـ INV-001 → الفاتورة تُسدّد بالكامل
+  const p2 = addAccountPayment(customer, invoices, payments, 3.00);
+  assert.strictEqual(p2.linkedInvoice, 'INV-001');
+  assert.strictEqual(p2.creditAdded, 0);
+  assert.strictEqual(simInvoiceBalance(invoices[0], payments).remaining, 0, 'بعد الدفعة الثانية الفاتورة مسدّدة');
+  assert.strictEqual(simInvoiceBalance(invoices[0], payments).closed, true);
+
+  // الدفعة 3: 3.00 — لا فواتير مفتوحة → كلها فائض → رصيد إضافي 3.00
+  const p3 = addAccountPayment(customer, invoices, payments, 3.00);
+  assert.strictEqual(p3.linkedInvoice, '', 'لا تُربط لأن كل الفواتير مسدّدة');
+  assert.strictEqual(p3.creditAdded, 3.00, 'الدفعة الثالثة بالكامل فائض');
+  assert.strictEqual(customer.creditBalance, 3.00, 'الرصيد الإضافي يصير 3.00');
+
+  // الفاتورة تبقى مسدّدة والحساب بلا متبقٍ
+  assert.strictEqual(simInvoiceBalance(invoices[0], payments).remaining, 0);
+  assert.strictEqual(simAccountRemaining(invoices, payments), 0, 'الحساب بلا دين');
+});
+
+test('المورد: دفعتان تُسدّدان فاتورة شراء ثم دفعة زائدة → رصيد إضافي', () => {
+  const supplier = { name: 'مورد', balance: 10, creditBalance: 0 };
+  const invoices = [{ number: 'PINV-001', date: '2026-07-02', total: 10, paidAmount: 0, paymentType: 'deferred' }];
+  const payments = [];
+
+  addAccountPayment(supplier, invoices, payments, 4);
+  assert.strictEqual(simInvoiceBalance(invoices[0], payments).remaining, 6);
+
+  addAccountPayment(supplier, invoices, payments, 6);
+  assert.strictEqual(simInvoiceBalance(invoices[0], payments).closed, true);
+
+  const p3 = addAccountPayment(supplier, invoices, payments, 5);
+  assert.strictEqual(p3.creditAdded, 5, 'الفائض بعد التسوية يصير رصيداً');
+  assert.strictEqual(supplier.creditBalance, 5);
+});
+
+// ------------------------------------------------------------
 // 4) الثبات (persistence) — يتخطّى تلقائياً إن لم تتوفر better-sqlite3
 // ------------------------------------------------------------
 console.log('\n→ ثبات creditBalance في SQLite (db.js)');

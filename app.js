@@ -2356,10 +2356,13 @@ function getCustomerAccount(customerName) {
   const remaining = Math.max(0, totalDeferred - paidOnDeferred - totalLinked - totalStandalone);
   const totalPaid = totalCash + (totalDeferred - remaining);
 
+  const cust = (db.customers || []).find(c => c.name === customerName);
+  const creditBalance = cust ? (parseFloat(cust.creditBalance) || 0) : 0;
+
   return { invoices, cashInvoices, deferredInvoices, payments,
            totalInvoices, totalCash, totalDeferred,
            paidOnDeferred, totalStandalone, totalLinked,
-           totalPaid, remaining };
+           totalPaid, remaining, creditBalance };
 }
 
 function openCustomerAccount(customerName) {
@@ -2374,6 +2377,17 @@ function openCustomerAccount(customerName) {
   remEl.textContent = fmtUSD(acc.remaining);
   remEl.style.color = acc.remaining > 0 ? 'var(--red-600)' : 'var(--green-700)';
   document.getElementById('ca-remaining-old').textContent = fmtOld(usdToOld(acc.remaining));
+
+  // رصيد إضافي للزبون (فائض الدفعات فوق كل الفواتير) — يظهر فقط عند وجوده
+  const creditRow = document.getElementById('ca-credit-row');
+  if (creditRow) {
+    if (acc.creditBalance > CREDIT_EPSILON) {
+      creditRow.style.display = 'block';
+      document.getElementById('ca-credit-balance').textContent = fmtUSD(acc.creditBalance);
+    } else {
+      creditRow.style.display = 'none';
+    }
+  }
 
   // جدول الفواتير — مع تمييز نقدي/آجل
   const invTbody = document.getElementById('ca-invoices-tbody');
@@ -2428,9 +2442,56 @@ function addCustomerPayment() {
   if (!amount || amount <= 0) { showToast('أدخل مبلغ صحيح', 'error'); return; }
   if (!db.customerPayments) db.customerPayments = [];
 
-  db.customerPayments.push({ customerName, amount, note, date });
+  // رصيد إضافي: إن تجاوز المبلغ إجمالي المطلوب على كل الفواتير المفتوحة
+  // — يطبَّق المطلوب على الفواتير ويتحول الفائض إلى creditBalance (نفس منطق saveReceiptCustomer)
+  const outstanding = getCustomerAccount(customerName).remaining;
+  const over = computeOverpayment(amount, outstanding);
+  let creditAdded = 0;
+  if (over.isOverpayment) {
+    creditAdded = over.creditAdded;
+    const ok = confirm('المبلغ يتجاوز المطلوب بمقدار ' + fmtUSD(creditAdded) +
+      ' — هل تريد حفظ الفرق كرصيد إضافي للعميل؟');
+    if (!ok) return; // إيقاف الحفظ
+  }
+
+  // ربط تلقائي بأقدم فاتورة آجلة مفتوحة حتى يعكس رصيد الفاتورة كل الدفعات
+  let linkedInvoice = '';
+  const open = getDeferredInvoicesForCustomer(customerName)
+    .slice()
+    .sort((a, b) => (new Date(a.date) - new Date(b.date)) || String(a.number).localeCompare(String(b.number)));
+  if (open.length) linkedInvoice = open[0].number;
+
+  db.customerPayments.push({
+    customerName, amount, note, date,
+    creditAdded, // فائض محوّل لرصيد إضافي — يُستثنى من قوة السداد على الفواتير
+    linkedInvoice,
+    description: creditAdded > CREDIT_EPSILON
+      ? 'دفعة زائدة — منها ' + fmtUSD(creditAdded) + ' رصيد إضافي'
+      : (linkedInvoice ? 'سداد فاتورة ' + linkedInvoice : '')
+  });
+
+  // تحديث رصيد الزبون — الجزء المطبَّق على الفواتير فقط (نستثني الفائض)
+  const cust = (db.customers || []).find(c => c.name === customerName);
+  if (cust) {
+    const appliedCash = amount - creditAdded;
+    cust.balance = Math.max(0, (cust.balance || 0) - appliedCash);
+    if (creditAdded > CREDIT_EPSILON) {
+      cust.creditBalance = roundMoney((cust.creditBalance || 0) + creditAdded);
+    }
+  }
+
+  // الفاتورة المربوطة — حدّث حالتها المجمّدة (المصدر الحي هو invoiceBalance)
+  if (linkedInvoice) {
+    const inv = (db.salesInvoices || []).find(i => i.number === linkedInvoice);
+    if (inv) inv.paymentStatus = invoiceBalance(inv).closed ? 'paid' : 'partial';
+  }
+
   saveData(db);
-  showToast('✅ تم تسجيل الدفعة: ' + fmtUSD(amount), 'success');
+  if (creditAdded > CREDIT_EPSILON) {
+    showToast('💰 تم تسجيل الدفعة — منها ' + fmtUSD(creditAdded) + ' رصيد إضافي (الرصيد الآن ' + fmtUSD(cust ? cust.creditBalance : creditAdded) + ')', 'success');
+  } else {
+    showToast('✅ تم تسجيل الدفعة: ' + fmtUSD(amount), 'success');
+  }
   openCustomerAccount(customerName);
 }
 
@@ -2524,10 +2585,13 @@ function getSupplierAccount(supplierName) {
   const remaining = Math.max(0, totalDeferred - paidOnDeferred - totalLinked - totalStandalone);
   const totalPaid = totalCash + (totalDeferred - remaining);
 
+  const sup = (db.suppliers || []).find(s => s.name === supplierName);
+  const creditBalance = sup ? (parseFloat(sup.creditBalance) || 0) : 0;
+
   return { invoices, cashInvoices, deferredInvoices, payments,
            totalInvoices, totalCash, totalDeferred,
            paidOnDeferred, totalStandalone, totalLinked,
-           totalPaid, remaining };
+           totalPaid, remaining, creditBalance };
 }
 
 function openSupplierAccount(supplierName) {
@@ -2542,6 +2606,17 @@ function openSupplierAccount(supplierName) {
   remEl.textContent = fmtUSD(acc.remaining);
   remEl.style.color = acc.remaining > 0 ? 'var(--red-600)' : 'var(--green-700)';
   document.getElementById('sa-remaining-old').textContent = fmtOld(usdToOld(acc.remaining));
+
+  // رصيد إضافي مستحق لنا من المورد (فائض الدفعات) — يظهر فقط عند وجوده
+  const creditRow = document.getElementById('sa-credit-row');
+  if (creditRow) {
+    if (acc.creditBalance > CREDIT_EPSILON) {
+      creditRow.style.display = 'block';
+      document.getElementById('sa-credit-balance').textContent = fmtUSD(acc.creditBalance);
+    } else {
+      creditRow.style.display = 'none';
+    }
+  }
 
   // جدول الفواتير
   const invTbody = document.getElementById('sa-invoices-tbody');
@@ -2589,9 +2664,56 @@ function addSupplierPayment() {
   if (!amount || amount <= 0) { showToast('أدخل مبلغ صحيح', 'error'); return; }
   if (!db.supplierPayments) db.supplierPayments = [];
 
-  db.supplierPayments.push({ supplierName, amount, note, date });
+  // رصيد إضافي مستحق لنا من المورد: إن تجاوز المبلغ إجمالي المطلوب على كل الفواتير المفتوحة
+  // — يطبَّق المطلوب على الفواتير ويتحول الفائض إلى creditBalance (نفس منطق saveReceiptSupplier)
+  const outstanding = getSupplierAccount(supplierName).remaining;
+  const over = computeOverpayment(amount, outstanding);
+  let creditAdded = 0;
+  if (over.isOverpayment) {
+    creditAdded = over.creditAdded;
+    const ok = confirm('المبلغ يتجاوز المطلوب بمقدار ' + fmtUSD(creditAdded) +
+      ' — هل تريد حفظ الفرق كرصيد إضافي مستحق لنا من المورد؟');
+    if (!ok) return; // إيقاف الحفظ
+  }
+
+  // ربط تلقائي بأقدم فاتورة شراء آجلة مفتوحة
+  let linkedInvoice = '';
+  const open = getDeferredInvoicesForSupplier(supplierName)
+    .slice()
+    .sort((a, b) => (new Date(a.date) - new Date(b.date)) || String(a.number).localeCompare(String(b.number)));
+  if (open.length) linkedInvoice = open[0].number;
+
+  db.supplierPayments.push({
+    supplierName, amount, note, date,
+    creditAdded, // فائض محوّل لرصيد إضافي — يُستثنى من قوة السداد على الفواتير
+    linkedInvoice,
+    description: creditAdded > CREDIT_EPSILON
+      ? 'دفعة زائدة — منها ' + fmtUSD(creditAdded) + ' رصيد إضافي'
+      : (linkedInvoice ? 'سداد فاتورة ' + linkedInvoice : '')
+  });
+
+  // تحديث رصيد المورد — الجزء المطبَّق على الفواتير فقط (نستثني الفائض)
+  const sup = (db.suppliers || []).find(s => s.name === supplierName);
+  if (sup) {
+    const appliedCash = amount - creditAdded;
+    sup.balance = Math.max(0, (sup.balance || 0) - appliedCash);
+    if (creditAdded > CREDIT_EPSILON) {
+      sup.creditBalance = roundMoney((sup.creditBalance || 0) + creditAdded);
+    }
+  }
+
+  // الفاتورة المربوطة — حدّث حالتها المجمّدة (المصدر الحي هو invoiceBalance)
+  if (linkedInvoice) {
+    const inv = (db.purchaseInvoices || []).find(i => i.number === linkedInvoice);
+    if (inv) inv.paymentStatus = invoiceBalance(inv).closed ? 'paid' : 'partial';
+  }
+
   saveData(db);
-  showToast('✅ تم تسجيل الدفعة: ' + fmtUSD(amount), 'success');
+  if (creditAdded > CREDIT_EPSILON) {
+    showToast('💰 تم تسجيل الدفعة — منها ' + fmtUSD(creditAdded) + ' رصيد إضافي (الرصيد الآن ' + fmtUSD(sup ? sup.creditBalance : creditAdded) + ')', 'success');
+  } else {
+    showToast('✅ تم تسجيل الدفعة: ' + fmtUSD(amount), 'success');
+  }
   openSupplierAccount(supplierName);
 }
 
