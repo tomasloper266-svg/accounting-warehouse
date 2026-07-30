@@ -173,12 +173,15 @@ function createTables() {
     );
 
     CREATE TABLE IF NOT EXISTS returns (
-      number TEXT PRIMARY KEY,
-      type   TEXT,
-      date   TEXT,
-      party  TEXT,
-      total  REAL DEFAULT 0,
-      note   TEXT
+      number        TEXT PRIMARY KEY,
+      type          TEXT,
+      date          TEXT,
+      party         TEXT,
+      total         REAL DEFAULT 0,
+      note          TEXT,
+      refInvoice    TEXT DEFAULT '',
+      debtReduction REAL DEFAULT 0,
+      creditAdded   REAL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS return_lines (
@@ -188,7 +191,8 @@ function createTables() {
       qty          REAL DEFAULT 0,
       price        REAL DEFAULT 0,
       total        REAL DEFAULT 0,
-      unitType     TEXT DEFAULT 'unit'
+      unitType     TEXT DEFAULT 'unit',
+      srcLine      INTEGER DEFAULT -1
     );
 
     CREATE TABLE IF NOT EXISTS customer_payments (
@@ -280,6 +284,11 @@ function migrateSchema() {
     { table: 'purchase_lines', column: 'note',     def: "TEXT DEFAULT ''" },
     // return_lines
     { table: 'return_lines', column: 'unitType', def: "TEXT DEFAULT 'unit'" },
+    { table: 'return_lines', column: 'srcLine',  def: "INTEGER DEFAULT -1" },
+    // returns — ربط مردود المبيع بفاتورته المصدر وتفصيل أثره على الحساب
+    { table: 'returns', column: 'refInvoice',    def: "TEXT DEFAULT ''" },
+    { table: 'returns', column: 'debtReduction', def: "REAL DEFAULT 0" },
+    { table: 'returns', column: 'creditAdded',   def: "REAL DEFAULT 0" },
     // customer_payments — إيصال قبض
     { table: 'customer_payments', column: 'receiptNum',         def: "TEXT DEFAULT ''" },
     { table: 'customer_payments', column: 'paymentMethod',      def: "TEXT DEFAULT 'cash'" },
@@ -542,11 +551,12 @@ function saveAll(data) {
     // returns
     db.prepare('DELETE FROM return_lines').run();
     db.prepare('DELETE FROM returns').run();
-    const insRet = db.prepare(`INSERT INTO returns (number, type, date, party, total, note) VALUES (@number, @type, @date, @party, @total, @note)`);
-    const insRetLine = db.prepare(`INSERT INTO return_lines (returnNumber, itemId, qty, price, total, unitType) VALUES (@returnNumber, @itemId, @qty, @price, @total, @unitType)`);
+    const insRet = db.prepare(`INSERT INTO returns (number, type, date, party, total, note, refInvoice, debtReduction, creditAdded) VALUES (@number, @type, @date, @party, @total, @note, @refInvoice, @debtReduction, @creditAdded)`);
+    const insRetLine = db.prepare(`INSERT INTO return_lines (returnNumber, itemId, qty, price, total, unitType, srcLine) VALUES (@returnNumber, @itemId, @qty, @price, @total, @unitType, @srcLine)`);
     (data.returns || []).forEach(r => {
-      insRet.run({ number: r.number, type: r.type || '', date: r.date || '', party: r.party || '', total: r.total || 0, note: r.note || '' });
-      (r.lines || []).forEach(l => insRetLine.run({ returnNumber: r.number, itemId: l.itemId || '', qty: l.qty || 0, price: l.price || 0, total: l.total || 0, unitType: l.unitType || 'unit' }));
+      insRet.run({ number: r.number, type: r.type || '', date: r.date || '', party: r.party || '', total: r.total || 0, note: r.note || '',
+                   refInvoice: r.refInvoice || '', debtReduction: r.debtReduction || 0, creditAdded: r.creditAdded || 0 });
+      (r.lines || []).forEach(l => insRetLine.run({ returnNumber: r.number, itemId: l.itemId || '', qty: l.qty || 0, price: l.price || 0, total: l.total || 0, unitType: l.unitType || 'unit', srcLine: (l.srcLine === undefined || l.srcLine === null) ? -1 : l.srcLine }));
     });
 
     // customer payments — إيصالات القبض
@@ -679,7 +689,7 @@ function paymentSettlement(p) {
 // المتبقي الحي على فاتورة واحدة — المصدر الوحيد لسطر الفاتورة في كشف الحساب.
 // المدفوع = الوديعة عند الإنشاء + الدفعات اللاحقة المربوطة بهذه الفاتورة حصراً.
 // الدفعات اليتيمة (بلا linkedInvoice) لا تُحتسب هنا — لا توزيع خفي على الفواتير.
-function computeInvoiceRemaining(inv, payments) {
+function computeInvoiceRemaining(inv, payments, returns) {
   const total = roundMoney(inv.total || 0);
   if ((inv.paymentType || 'cash') !== 'deferred') {
     return { total, paid: total, remaining: 0, closed: true, isDeferred: false };
@@ -688,7 +698,11 @@ function computeInvoiceRemaining(inv, payments) {
   const later = (payments || [])
     .filter(p => p.linkedInvoice === inv.number && !isAutoDepositRecord(p))
     .reduce((s, p) => s + paymentSettlement(p), 0);
-  const paid = roundMoney(deposit + later);
+  // مردود المبيع المربوط بهذه الفاتورة يُسوّي جزءاً من دينها (debtReduction فقط، والفائض ذهب لرصيد إضافي).
+  const returned = (returns || [])
+    .filter(r => r.refInvoice === inv.number)
+    .reduce((s, r) => s + (parseFloat(r.debtReduction) || 0), 0);
+  const paid = roundMoney(deposit + later + returned);
   const remaining = Math.max(0, roundMoney(total - paid));
   return { total, paid, remaining, closed: remaining <= CREDIT_EPSILON, isDeferred: true };
 }
@@ -698,6 +712,7 @@ function computeInvoiceRemaining(inv, payments) {
 function computeAccountSummary(args) {
   const invoices      = (args && args.invoices) || [];
   const allPayments   = (args && args.payments) || [];
+  const returns       = (args && args.returns) || [];
   const creditBalance = roundMoney((args && args.creditBalance) || 0);
 
   // سجلات الوديعة التلقائية مضمّنة في paidAmount — تُستثنى لتفادي الاحتساب المزدوج.
@@ -717,16 +732,23 @@ function computeAccountSummary(args) {
 
   // الإجمالي العام = مجموع سطور الفواتير حرفياً (المصدر الوحيد computeInvoiceRemaining لكل فاتورة).
   // لا نطرح الدفعات اليتيمة ضمنياً — تبقى بنداً مستقلاً ظاهراً للمستخدم.
-  const perInvoice = deferredInvoices.map(inv => computeInvoiceRemaining(inv, realPayments));
+  // مردودات المبيع تُسوّي جزءاً من دين فاتورتها المصدر داخل computeInvoiceRemaining (debtReduction).
+  const saleReturns = returns.filter(r => (r.type || 'sale') === 'sale');
+  const perInvoice = deferredInvoices.map(inv => computeInvoiceRemaining(inv, realPayments, saleReturns));
   const invoiceRemaining = roundMoney(perInvoice.reduce((s, b) => s + b.remaining, 0));
   const remaining  = invoiceRemaining;
   const totalPaid  = roundMoney(totalInvoices - remaining); // المدفوع على الفواتير = الإجمالي − المتبقي
+
+  const totalReturns        = roundMoney(saleReturns.reduce((s, r) => s + (r.total || 0), 0));
+  const totalReturnDebt     = roundMoney(saleReturns.reduce((s, r) => s + (parseFloat(r.debtReduction) || 0), 0));
+  const totalReturnCredit   = roundMoney(saleReturns.reduce((s, r) => s + (parseFloat(r.creditAdded)   || 0), 0));
 
   return {
     totalInvoices, totalCash, totalDeferred,
     totalLinked, totalStandalone, totalPayments,
     standalonePayments,
     invoiceRemaining, remaining, totalPaid,
+    totalReturns, totalReturnDebt, totalReturnCredit,
     creditBalance,
   };
 }
@@ -790,6 +812,52 @@ function reverseCreditMovements(ledger, party, opts) {
   return reversed;
 }
 
+// ============================================================
+// مردود المبيع (Sales Return) — دوال نقية مشتركة مع الواجهة (app.js)
+// تضمن منطقاً واحداً للكمية القابلة للإرجاع وأثر المردود على الدين/الرصيد الإضافي.
+// ============================================================
+
+// أقصى كمية قابلة للإرجاع لبند = الكمية المباعة − ما سبق إرجاعه لنفس البند من نفس الفاتورة.
+function computeReturnableQty(soldQty, priorReturnedQty) {
+  return roundMoney(Math.max(0, (Number(soldQty) || 0) - (Number(priorReturnedQty) || 0)));
+}
+
+// تحقق من كمية إرجاع مطلوبة لبند — تُرفض إذا كانت صفراً أو تتجاوز المتاح.
+function validateReturnQty(requestedQty, soldQty, priorReturnedQty) {
+  const returnable = computeReturnableQty(soldQty, priorReturnedQty);
+  const q = Number(requestedQty) || 0;
+  if (q <= 0) return { ok: false, reason: 'zero', returnable };
+  if (roundMoney(q) > roundMoney(returnable) + CREDIT_EPSILON) return { ok: false, reason: 'exceeds', returnable };
+  return { ok: true, returnable };
+}
+
+// أثر مردود المبيع على حساب الزبون — يغطّي الحالات الثلاث:
+//  • فاتورة مسدّدة بالكامل (المتبقي 0) ← كل القيمة تذهب للرصيد الإضافي (creditAdded).
+//  • فاتورة آجلة فيها دين ← يُخصم من الدين (debtReduction) بمقدار الأقل من القيمة والدين.
+//  • مدفوعة جزئياً ← يُسدّد الدين المتبقي أولاً والفائض يذهب للرصيد الإضافي.
+function computeSalesReturnEffect(invoiceRemaining, returnValue) {
+  const rem = Math.max(0, roundMoney(invoiceRemaining));
+  const val = Math.max(0, roundMoney(returnValue));
+  const debtReduction = roundMoney(Math.min(val, rem));
+  const creditAdded   = roundMoney(val - debtReduction);
+  return { debtReduction, creditAdded };
+}
+
+// حساب المخزون الحالي لكل صنف من الحركات: شراء (+)، بيع (−)، مردود بيع (+)، مردود شراء (−)، تالف (−).
+// دالة نقية — تعكس calcInventory في app.js حرفياً. مردود البيع يُعيد الكمية تلقائياً للمخزون.
+function computeInventory(data) {
+  const inv = {};
+  const add = (id, q) => { if (id) inv[id] = roundMoney((inv[id] || 0) + q); };
+  (data.purchaseInvoices || []).filter(p => !p.deletedAt).forEach(p =>
+    (p.lines || []).forEach(l => add(l.itemId, +(parseFloat(l.qty) || 0))));
+  (data.salesInvoices || []).filter(i => !i.deletedAt).forEach(i =>
+    (i.lines || []).forEach(l => add(l.itemId, -(parseFloat(l.qty) || 0))));
+  (data.returns || []).forEach(r =>
+    (r.lines || []).forEach(l => add(l.itemId, ((r.type === 'sale') ? 1 : -1) * (parseFloat(l.qty) || 0))));
+  (data.damages || []).forEach(d => add(d.itemId, -(parseFloat(d.qty) || 0)));
+  return inv;
+}
+
 function hasData() {
   try {
     // يعتبر في بيانات لو في فواتير أو زبائن أو موردين — مش items فقط
@@ -814,4 +882,6 @@ module.exports = {
   isAutoDepositRecord, paymentSettlement, computeInvoiceRemaining, computeAccountSummary,
   // سجل حركة الرصيد الإضافي — محرك نقي مشترك مع الواجهة
   recordCreditMovement, reverseCreditMovements, creditMovementKey,
+  // مردود المبيع — دوال نقية مشتركة مع الواجهة
+  computeReturnableQty, validateReturnQty, computeSalesReturnEffect, computeInventory,
 };
