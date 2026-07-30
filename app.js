@@ -2379,6 +2379,29 @@ function newPaymentId() {
   return 'PID-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
 }
 
+// عرض سجل حركة الرصيد الإضافي في كشف الحساب (مسار العرض الموحّد للزبون والمورد).
+function renderCreditHistory(partyType, name, historyElId, tbodyElId) {
+  const historyEl = document.getElementById(historyElId);
+  const tbody = document.getElementById(tbodyElId);
+  if (!historyEl || !tbody) return;
+  const moves = creditMovementsFor(partyType, name);
+  if (!moves.length) { historyEl.style.display = 'none'; tbody.innerHTML = ''; return; }
+  const refLabel = { invoice: 'فاتورة', payment: 'دفعة', receipt: 'إيصال' };
+  historyEl.style.display = 'block';
+  tbody.innerHTML = moves.map(m => {
+    const isAdd = m.amount > 0;
+    const typeTxt = isAdd ? '➕ إضافة' : '➖ خصم';
+    const color = isAdd ? 'var(--green-700)' : 'var(--red-600)';
+    const ref = (refLabel[m.refType] ? refLabel[m.refType] + ' ' : '') + (m.ref || '—');
+    return '<tr>' +
+      '<td>' + (m.date || '—') + '</td>' +
+      '<td style="color:' + color + ';font-weight:600">' + typeTxt + '</td>' +
+      '<td style="color:' + color + ';font-weight:700">' + (isAdd ? '+' : '−') + fmtUSD(Math.abs(m.amount)) + '</td>' +
+      '<td>' + ref + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
 // كل دفعات زبون (بيع) أو مورد (شراء)
 function paymentsForParty(name, isSale) {
   const arr = isSale ? (db.customerPayments || []) : (db.supplierPayments || []);
@@ -2479,6 +2502,7 @@ function openCustomerAccount(customerName) {
       creditRow.style.display = 'none';
     }
   }
+  renderCreditHistory('customer', customerName, 'ca-credit-history', 'ca-credit-tbody');
 
   // جدول الفواتير — مع تمييز نقدي/آجل
   const invTbody = document.getElementById('ca-invoices-tbody');
@@ -2721,6 +2745,7 @@ function openSupplierAccount(supplierName) {
       creditRow.style.display = 'none';
     }
   }
+  renderCreditHistory('supplier', supplierName, 'sa-credit-history', 'sa-credit-tbody');
 
   // جدول الفواتير
   const invTbody = document.getElementById('sa-invoices-tbody');

@@ -2093,6 +2093,17 @@
         </table>
       </div>
     </div>
+
+    <!-- سجل حركة الرصيد الإضافي — يظهر فقط عند وجود حركات -->
+    <div id="ca-credit-history" style="display:none;margin-top:var(--space-3);">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">💳 سجل حركة الرصيد الإضافي</div>
+      <div class="invoice-table-wrap" style="max-height:160px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>التاريخ</th><th>نوع الحركة</th><th>المبلغ</th><th>المرجع</th></tr></thead>
+          <tbody id="ca-credit-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2174,6 +2185,17 @@
         <table>
           <thead><tr><th>التاريخ</th><th>ملاحظة</th><th>المبلغ</th><th style="width:40px"></th></tr></thead>
           <tbody id="sa-payments-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- سجل حركة الرصيد الإضافي — يظهر فقط عند وجود حركات -->
+    <div id="sa-credit-history" style="display:none;margin-top:var(--space-3);">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;">💳 سجل حركة الرصيد الإضافي</div>
+      <div class="invoice-table-wrap" style="max-height:160px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>التاريخ</th><th>نوع الحركة</th><th>المبلغ</th><th>المرجع</th></tr></thead>
+          <tbody id="sa-credit-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -2876,7 +2898,7 @@
     <!-- ============================================================ -->
 
 <script src="theme.js?v=1782309206"></script>
-<script src="app.js?v=1782400000"></script>
+<script src="app.js?v=1782500000"></script>
 </main>
 </div>
 </body>
