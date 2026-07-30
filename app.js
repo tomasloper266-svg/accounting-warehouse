@@ -216,6 +216,7 @@ async function initDB() {
   if (!db.damages)          db.damages = [];
   if (!db.customerPayments) db.customerPayments = [];
   if (!db.supplierPayments) db.supplierPayments = [];
+  if (!db.creditMovements)  db.creditMovements = [];
 }
 
 function loadData() {
@@ -281,6 +282,8 @@ function softDeleteInvoice(number, isSale) {
     danger: true,
     onConfirm: () => {
       inv.deletedAt = new Date().toISOString();
+      // إلغاء فاتورة خصمت رصيداً إضافياً — يُسترجع الرصيد للطرف الصحيح
+      reverseInvoiceCredit(inv, isSale, 'add', 'استرجاع رصيد — إلغاء الفاتورة ' + number);
       saveData(db);
       showToast('🗑️ تم نقل الفاتورة ' + number + ' إلى المحذوفات', 'success');
       const modal = document.getElementById('invoice-detail-modal');
@@ -296,6 +299,8 @@ function restoreInvoiceFromTrash(number, isSale) {
   const inv = (list || []).find(i => i.number === number);
   if (!inv) return;
   inv.deletedAt = '';
+  // استرجاع فاتورة كانت تخصم رصيداً إضافياً — يُعاد خصم الرصيد
+  reverseInvoiceCredit(inv, isSale, 'deduct', 'إعادة خصم رصيد — استرجاع الفاتورة ' + number);
   saveData(db);
   showToast('♻️ تم استرجاع الفاتورة ' + number, 'success');
   renderTrash();
@@ -948,11 +953,11 @@ function saveSaleInvoice() {
   if(cust && (cust.creditBalance||0) > CREDIT_EPSILON) {
     const res = applyCreditToInvoice(cust.creditBalance, total, 0);
     creditApplied = res.creditApplied;
-    cust.creditBalance = res.remainingCredit;
+    // الخصم الفعلي من الرصيد يُسجَّل بعد إنشاء الفاتورة عبر postCreditMovement (مربوطاً برقمها)
     // العميل يدفع نقداً بحد أقصى المتبقي بعد الخصم
     effectivePaid = Math.min(paidAmount, res.amountDue);
     const dueOnInvoice = roundMoney(res.amountDue - effectivePaid);
-    showToast('💳 خُصِم ' + fmtUSD(creditApplied) + ' من الرصيد الإضافي — الرصيد المتبقي ' + fmtUSD(cust.creditBalance) + ' — المتبقي على الفاتورة ' + fmtUSD(dueOnInvoice), 'success');
+    showToast('💳 خُصِم ' + fmtUSD(creditApplied) + ' من الرصيد الإضافي — الرصيد المتبقي ' + fmtUSD(res.remainingCredit) + ' — المتبقي على الفاتورة ' + fmtUSD(dueOnInvoice), 'success');
   }
   const settledNow = roundMoney(effectivePaid + creditApplied);
 
@@ -976,6 +981,12 @@ function saveSaleInvoice() {
     usdToOld: getRate()
   };
   db.salesInvoices.push(inv);
+
+  // خصم الرصيد الإضافي عبر السجل الموحّد (مصدر حقيقة واحد) — مربوط برقم الفاتورة
+  if(creditApplied > CREDIT_EPSILON && cust) {
+    postCreditMovement({ partyType: 'customer', party: cust, type: 'deduct', amount: creditApplied,
+      refType: 'invoice', ref: inv.number, date: inv.date, note: 'خصم على الفاتورة ' + inv.number });
+  }
 
   // إيصال قبض تلقائي لو دفع نقدي جزئي (الرصيد الإضافي محسوب ضمن paidAmount)
   if(effectivePaid > 0 && settledNow < total) {
@@ -1357,10 +1368,10 @@ function savePurchaseInvoice() {
   if(sup && (sup.creditBalance||0) > CREDIT_EPSILON) {
     const res = applyCreditToInvoice(sup.creditBalance, total, 0);
     creditApplied = res.creditApplied;
-    sup.creditBalance = res.remainingCredit;
+    // الخصم الفعلي من الرصيد يُسجَّل بعد إنشاء الفاتورة عبر postCreditMovement (مربوطاً برقمها)
     effectivePaid = Math.min(paidAmount, res.amountDue);
     const dueOnInvoice = roundMoney(res.amountDue - effectivePaid);
-    showToast('💳 خُصِم ' + fmtUSD(creditApplied) + ' من الرصيد الإضافي للمورد — الرصيد المتبقي ' + fmtUSD(sup.creditBalance) + ' — المتبقي على الفاتورة ' + fmtUSD(dueOnInvoice), 'success');
+    showToast('💳 خُصِم ' + fmtUSD(creditApplied) + ' من الرصيد الإضافي للمورد — الرصيد المتبقي ' + fmtUSD(res.remainingCredit) + ' — المتبقي على الفاتورة ' + fmtUSD(dueOnInvoice), 'success');
   }
   const settledNow = roundMoney(effectivePaid + creditApplied);
 
@@ -1383,6 +1394,13 @@ function savePurchaseInvoice() {
     currency:'USD', usdToOld: getRate()
   };
   db.purchaseInvoices.push(inv);
+
+  // خصم الرصيد الإضافي للمورد عبر السجل الموحّد — مربوط برقم الفاتورة
+  if(creditApplied > CREDIT_EPSILON && sup) {
+    postCreditMovement({ partyType: 'supplier', party: sup, type: 'deduct', amount: creditApplied,
+      refType: 'invoice', ref: inv.number, date: inv.date, note: 'خصم على فاتورة الشراء ' + inv.number });
+  }
+
   saveData(db);
   purchaseLines = [{itemId:'',qty:1,price:0,total:0}];
   document.getElementById('pur-supplier-input').value = '';
@@ -2288,6 +2306,117 @@ function applyCreditToInvoice(creditBalance, invoiceTotal, alreadyPaid = 0) {
            amountDue: roundMoney(due - creditApplied) };
 }
 
+// ============================================================
+// سجل حركة الرصيد الإضافي (credit ledger) — مصدر الحقيقة الوحيد
+// يعكس تماماً دوال db.js النقية. كل مسارات الدفع الثلاثة
+// (إنشاء فاتورة / دفعة من الكشف / إيصال مستقل) تستدعي postCreditMovement فقط.
+// ============================================================
+const CREDIT_MOVE = { ADD: 'add', DEDUCT: 'deduct' };
+
+function creditMovementKey(m) {
+  return [m.partyType, m.partyName, m.type, m.refType, m.ref].join('|');
+}
+
+function buildCreditMovement({ partyType, partyName, type, amount, refType = '', ref = '', note = '', date = '' }) {
+  return {
+    id: 'CM-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+    partyType, partyName,
+    type: type === CREDIT_MOVE.DEDUCT ? CREDIT_MOVE.DEDUCT : CREDIT_MOVE.ADD,
+    amount: roundMoney(amount),
+    refType, ref, note,
+    date: date || new Date().toISOString().split('T')[0],
+  };
+}
+
+function recordCreditMovement(movements, move) {
+  const list = Array.isArray(movements) ? movements : [];
+  if (!move || roundMoney(move.amount) <= CREDIT_EPSILON) return { added: false, movement: null };
+  const dup = move.ref && list.some(m => creditMovementKey(m) === creditMovementKey(move));
+  if (dup) return { added: false, movement: null };
+  list.push(move);
+  return { added: true, movement: move };
+}
+
+function creditBalanceFromMovements(movements, partyType, partyName) {
+  const list = Array.isArray(movements) ? movements : [];
+  const net = list
+    .filter(m => m.partyType === partyType && m.partyName === partyName)
+    .reduce((s, m) => s + (m.type === CREDIT_MOVE.DEDUCT ? -1 : 1) * (roundMoney(m.amount) || 0), 0);
+  return Math.max(0, roundMoney(net));
+}
+
+// المصدر الوحيد لتغيير رصيد أي طرف: يسجّل الحركة (مرة واحدة)
+// ثم يعيد حساب creditBalance من السجل — فلا تكرار ولا خلط بين الحسابات.
+// يربط الحركة دائماً بـ party.name فقط (لا تسرّب بين عملاء/موردين).
+function postCreditMovement({ partyType, party, type, amount, refType = '', ref = '', note = '', date = '' }) {
+  if (!party || !party.name) return { added: false };
+  db.creditMovements = db.creditMovements || [];
+  seedOpeningCreditMovement(partyType, party);
+  const move = buildCreditMovement({ partyType, partyName: party.name, type, amount, refType, ref, note, date });
+  const res = recordCreditMovement(db.creditMovements, move);
+  // الرصيد دائماً مشتقّ من السجل — مصدر حقيقة واحد
+  party.creditBalance = creditBalanceFromMovements(db.creditMovements, partyType, party.name);
+  return res;
+}
+
+// توافق خلفي: بيانات قديمة فيها creditBalance دون سجل — نزرع حركة
+// افتتاحية واحدة تمثّل الرصيد القائم حتى يبقى السجل مصدر الحقيقة.
+function seedOpeningCreditMovement(partyType, party) {
+  const existing = (db.creditMovements || []).some(m => m.partyType === partyType && m.partyName === party.name);
+  const legacy = roundMoney(party.creditBalance || 0);
+  if (!existing && legacy > CREDIT_EPSILON) {
+    db.creditMovements.push(buildCreditMovement({
+      partyType, partyName: party.name, type: CREDIT_MOVE.ADD, amount: legacy,
+      refType: 'opening', ref: 'OPENING-' + (party.id || party.name),
+      note: 'رصيد إضافي افتتاحي',
+    }));
+  }
+}
+
+// يعكس (أو يعيد) خصم الرصيد الإضافي المرتبط بفاتورة عند إلغائها/استرجاعها
+function reverseInvoiceCredit(inv, isSale, type, note) {
+  const applied = roundMoney(inv && inv.creditApplied || 0);
+  if (applied <= CREDIT_EPSILON) return;
+  const partyType = isSale ? 'customer' : 'supplier';
+  const partyName = isSale ? inv.customerName : inv.supplierName;
+  const party = (isSale ? (db.customers || []) : (db.suppliers || [])).find(p => p.name === partyName);
+  if (!party) return;
+  postCreditMovement({ partyType, party, type, amount: applied,
+    refType: 'reversal', ref: 'REV-INV-' + inv.number + '-' + Date.now() + '-' + Math.floor(Math.random() * 1e6),
+    note });
+}
+
+// حركات الرصيد لطرف واحد مرتّبة (الأحدث أولاً) — لعرض السجل
+function creditMovementsForParty(partyType, partyName) {
+  return (db.creditMovements || [])
+    .filter(m => m.partyType === partyType && m.partyName === partyName)
+    .slice()
+    .sort((a, b) => (new Date(b.date) - new Date(a.date)) || String(b.id).localeCompare(String(a.id)));
+}
+
+// يعرض جدول سجل الرصيد الإضافي داخل نافذة الحساب (زبون أو مورد)
+function renderCreditHistory(partyType, partyName, sectionId, tbodyId) {
+  const section = document.getElementById(sectionId);
+  const tbody = document.getElementById(tbodyId);
+  if (!section || !tbody) return;
+  const moves = creditMovementsForParty(partyType, partyName);
+  if (moves.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  tbody.innerHTML = moves.map(m => {
+    const isAdd = m.type === CREDIT_MOVE.ADD;
+    const typeLabel = isAdd ? 'إضافة' : 'خصم';
+    const color = isAdd ? 'var(--green-700)' : 'var(--red-600)';
+    const sign = isAdd ? '+' : '-';
+    const ref = m.ref || '—';
+    return '<tr>' +
+      '<td>' + (m.date || '—') + '</td>' +
+      '<td style="color:' + color + ';font-weight:700">' + typeLabel + '</td>' +
+      '<td style="color:' + color + ';font-weight:700">' + sign + fmtUSD(m.amount) + '</td>' +
+      '<td style="font-size:11px">' + ref + (m.note ? '<br><span style="color:var(--text-muted)">' + m.note + '</span>' : '') + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
 // كل دفعات زبون (بيع) أو مورد (شراء)
 function paymentsForParty(name, isSale) {
   const arr = isSale ? (db.customerPayments || []) : (db.supplierPayments || []);
@@ -2423,6 +2552,9 @@ function openCustomerAccount(customerName) {
         '</tr>'
       ).join('');
 
+  // سجل حركة الرصيد الإضافي
+  renderCreditHistory('customer', customerName, 'ca-credit-history-section', 'ca-credit-history-tbody');
+
   // حقل إضافة دفعة
   document.getElementById('ca-payment-name').value = customerName;
   document.getElementById('ca-payment-amount').value = '';
@@ -2476,7 +2608,10 @@ function addCustomerPayment() {
     const appliedCash = amount - creditAdded;
     cust.balance = Math.max(0, (cust.balance || 0) - appliedCash);
     if (creditAdded > CREDIT_EPSILON) {
-      cust.creditBalance = roundMoney((cust.creditBalance || 0) + creditAdded);
+      // إضافة الفائض للرصيد عبر السجل الموحّد (مصدر حقيقة واحد)
+      postCreditMovement({ partyType: 'customer', party: cust, type: 'add', amount: creditAdded,
+        refType: 'payment', ref: 'CPAY-' + Date.now() + '-' + Math.floor(Math.random() * 1e6), date,
+        note: 'دفعة زائدة من كشف الحساب' + (linkedInvoice ? ' (مع ' + linkedInvoice + ')' : '') });
     }
   }
 
@@ -2501,13 +2636,21 @@ function deleteCustomerPayment(customerName, index) {
   const allPayments = db.customerPayments || [];
   // find actual index in full array
   let count = 0;
+  let removed = null;
   for (let i = 0; i < allPayments.length; i++) {
     if (allPayments[i].customerName === customerName) {
-      if (count === index) { allPayments.splice(i, 1); break; }
+      if (count === index) { removed = allPayments.splice(i, 1)[0]; break; }
       count++;
     }
   }
   db.customerPayments = allPayments;
+  // عكس أي رصيد إضافي نتج عن هذه الدفعة (منع تسرّب الرصيد بعد الحذف)
+  if (removed && roundMoney(removed.creditAdded || 0) > CREDIT_EPSILON) {
+    const cust = (db.customers || []).find(c => c.name === customerName);
+    if (cust) postCreditMovement({ partyType: 'customer', party: cust, type: 'deduct', amount: removed.creditAdded,
+      refType: 'reversal', ref: 'REV-CPAY-' + Date.now() + '-' + Math.floor(Math.random() * 1e6),
+      note: 'عكس رصيد إضافي — حذف دفعة' });
+  }
   saveData(db);
   showToast('🗑️ تم حذف الدفعة', 'success');
   openCustomerAccount(customerName);
@@ -2646,6 +2789,9 @@ function openSupplierAccount(supplierName) {
         '</tr>'
       ).join('');
 
+  // سجل حركة الرصيد الإضافي
+  renderCreditHistory('supplier', supplierName, 'sa-credit-history-section', 'sa-credit-history-tbody');
+
   document.getElementById('sa-payment-name').value = supplierName;
   document.getElementById('sa-payment-amount').value = '';
   document.getElementById('sa-payment-note').value = '';
@@ -2698,7 +2844,10 @@ function addSupplierPayment() {
     const appliedCash = amount - creditAdded;
     sup.balance = Math.max(0, (sup.balance || 0) - appliedCash);
     if (creditAdded > CREDIT_EPSILON) {
-      sup.creditBalance = roundMoney((sup.creditBalance || 0) + creditAdded);
+      // إضافة الفائض للرصيد عبر السجل الموحّد (مصدر حقيقة واحد)
+      postCreditMovement({ partyType: 'supplier', party: sup, type: 'add', amount: creditAdded,
+        refType: 'payment', ref: 'SPAY-' + Date.now() + '-' + Math.floor(Math.random() * 1e6), date,
+        note: 'دفعة زائدة للمورد من كشف الحساب' + (linkedInvoice ? ' (مع ' + linkedInvoice + ')' : '') });
     }
   }
 
@@ -2721,13 +2870,21 @@ function deleteSupplierPayment(supplierName, index) {
   if (!confirm('هل تريد حذف هذه الدفعة؟')) return;
   const allPayments = db.supplierPayments || [];
   let count = 0;
+  let removed = null;
   for (let i = 0; i < allPayments.length; i++) {
     if (allPayments[i].supplierName === supplierName) {
-      if (count === index) { allPayments.splice(i, 1); break; }
+      if (count === index) { removed = allPayments.splice(i, 1)[0]; break; }
       count++;
     }
   }
   db.supplierPayments = allPayments;
+  // عكس أي رصيد إضافي نتج عن هذه الدفعة (منع تسرّب الرصيد بعد الحذف)
+  if (removed && roundMoney(removed.creditAdded || 0) > CREDIT_EPSILON) {
+    const sup = (db.suppliers || []).find(s => s.name === supplierName);
+    if (sup) postCreditMovement({ partyType: 'supplier', party: sup, type: 'deduct', amount: removed.creditAdded,
+      refType: 'reversal', ref: 'REV-SPAY-' + Date.now() + '-' + Math.floor(Math.random() * 1e6),
+      note: 'عكس رصيد إضافي — حذف دفعة' });
+  }
   saveData(db);
   showToast('🗑️ تم حذف الدفعة', 'success');
   openSupplierAccount(supplierName);
@@ -4520,7 +4677,10 @@ function saveReceiptCustomer() {
     const appliedCash = amountUSD - creditAdded;
     cust.balance = Math.max(0, (cust.balance || 0) - appliedCash - discount);
     if (creditAdded > CREDIT_EPSILON) {
-      cust.creditBalance = roundMoney((cust.creditBalance || 0) + creditAdded);
+      // إضافة الفائض للرصيد عبر السجل الموحّد — مربوط برقم الإيصال
+      postCreditMovement({ partyType: 'customer', party: cust, type: 'add', amount: creditAdded,
+        refType: 'receipt', ref: receiptNum, date,
+        note: 'دفعة زائدة من الإيصال ' + receiptNum });
       showToast('💰 تم حفظ ' + fmtUSD(creditAdded) + ' كرصيد إضافي للعميل — الرصيد الآن ' + fmtUSD(cust.creditBalance), 'success');
     }
   }
@@ -4635,7 +4795,10 @@ function saveReceiptSupplier() {
     const appliedCash = amountUSD - creditAdded;
     sup.balance = Math.max(0, (sup.balance || 0) - appliedCash - discount);
     if (creditAdded > CREDIT_EPSILON) {
-      sup.creditBalance = roundMoney((sup.creditBalance || 0) + creditAdded);
+      // إضافة الفائض للرصيد عبر السجل الموحّد — مربوط برقم الإيصال
+      postCreditMovement({ partyType: 'supplier', party: sup, type: 'add', amount: creditAdded,
+        refType: 'receipt', ref: receiptNum, date,
+        note: 'دفعة زائدة للمورد من الإيصال ' + receiptNum });
       showToast('💰 تم حفظ ' + fmtUSD(creditAdded) + ' كرصيد إضافي مستحق لنا من المورد — الرصيد الآن ' + fmtUSD(sup.creditBalance), 'success');
     }
   }

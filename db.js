@@ -201,6 +201,7 @@ function createTables() {
       description  TEXT DEFAULT '',
       discountOnPayment REAL DEFAULT 0,
       linkedInvoice TEXT DEFAULT '',
+      creditAdded  REAL DEFAULT 0,
       note         TEXT,
       date         TEXT
     );
@@ -215,8 +216,22 @@ function createTables() {
       description  TEXT DEFAULT '',
       discountOnPayment REAL DEFAULT 0,
       linkedInvoice TEXT DEFAULT '',
+      creditAdded  REAL DEFAULT 0,
       note         TEXT,
       date         TEXT
+    );
+
+    -- سجل حركة الرصيد الإضافي (credit ledger) — مصدر الحقيقة الوحيد لكل إضافة/خصم
+    CREATE TABLE IF NOT EXISTS credit_movements (
+      id         TEXT PRIMARY KEY,
+      partyType  TEXT,
+      partyName  TEXT,
+      type       TEXT,
+      amount     REAL DEFAULT 0,
+      refType    TEXT DEFAULT '',
+      ref        TEXT DEFAULT '',
+      note       TEXT DEFAULT '',
+      date       TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS books (
@@ -283,6 +298,9 @@ function migrateSchema() {
     { table: 'customer_payments', column: 'linkedInvoice',     def: "TEXT DEFAULT ''" },
     { table: 'supplier_payments', column: 'linkedInvoice',     def: "TEXT DEFAULT ''" },
     { table: 'supplier_payments', column: 'discountOnPayment', def: "REAL DEFAULT 0" },
+    // creditAdded — فائض الدفع الزائد المحوّل لرصيد إضافي (كان يُفقد عند إعادة التحميل)
+    { table: 'customer_payments', column: 'creditAdded', def: "REAL DEFAULT 0" },
+    { table: 'supplier_payments', column: 'creditAdded', def: "REAL DEFAULT 0" },
     { table: 'sales_invoices',    column: 'paymentStatus',     def: "TEXT DEFAULT ''" },
     { table: 'purchase_invoices', column: 'paymentStatus',     def: "TEXT DEFAULT ''" },
     // سلة المحذوفات — حذف ناعم قابل للاسترجاع
@@ -369,9 +387,11 @@ function loadAll() {
 
   const customerPayments = db.prepare('SELECT * FROM customer_payments ORDER BY date DESC').all();
   const supplierPayments = db.prepare('SELECT * FROM supplier_payments ORDER BY date DESC').all();
+  const creditMovements  = db.prepare('SELECT * FROM credit_movements ORDER BY date, id').all();
 
   return { company, exchange, invoiceCounters, items, customers, suppliers, books,
-           salesInvoices, purchaseInvoices, returns, customerPayments, supplierPayments };
+           salesInvoices, purchaseInvoices, returns, customerPayments, supplierPayments,
+           creditMovements };
 }
 
 // ============================================================
@@ -534,8 +554,8 @@ function saveAll(data) {
     db.prepare('DELETE FROM customer_payments').run();
     const insCusPay = db.prepare(`
       INSERT INTO customer_payments
-        (receiptNum, customerName, amount, paymentMethod, chequeNum, description, discountOnPayment, linkedInvoice, note, date)
-      VALUES (@receiptNum, @customerName, @amount, @paymentMethod, @chequeNum, @description, @discountOnPayment, @linkedInvoice, @note, @date)
+        (receiptNum, customerName, amount, paymentMethod, chequeNum, description, discountOnPayment, linkedInvoice, creditAdded, note, date)
+      VALUES (@receiptNum, @customerName, @amount, @paymentMethod, @chequeNum, @description, @discountOnPayment, @linkedInvoice, @creditAdded, @note, @date)
     `);
     (data.customerPayments || []).forEach(p => insCusPay.run({
       receiptNum: p.receiptNum || '', customerName: p.customerName || '',
@@ -543,6 +563,7 @@ function saveAll(data) {
       chequeNum: p.chequeNum || '', description: p.description || '',
       discountOnPayment: p.discountOnPayment || 0,
       linkedInvoice: p.linkedInvoice || '',
+      creditAdded: p.creditAdded || 0,
       note: p.note || '', date: p.date || ''
     }));
 
@@ -550,8 +571,8 @@ function saveAll(data) {
     db.prepare('DELETE FROM supplier_payments').run();
     const insSupPay = db.prepare(`
       INSERT INTO supplier_payments
-        (receiptNum, supplierName, amount, paymentMethod, chequeNum, description, discountOnPayment, linkedInvoice, note, date)
-      VALUES (@receiptNum, @supplierName, @amount, @paymentMethod, @chequeNum, @description, @discountOnPayment, @linkedInvoice, @note, @date)
+        (receiptNum, supplierName, amount, paymentMethod, chequeNum, description, discountOnPayment, linkedInvoice, creditAdded, note, date)
+      VALUES (@receiptNum, @supplierName, @amount, @paymentMethod, @chequeNum, @description, @discountOnPayment, @linkedInvoice, @creditAdded, @note, @date)
     `);
     (data.supplierPayments || []).forEach(p => insSupPay.run({
       receiptNum: p.receiptNum || '', supplierName: p.supplierName || '',
@@ -559,7 +580,23 @@ function saveAll(data) {
       chequeNum: p.chequeNum || '', description: p.description || '',
       discountOnPayment: p.discountOnPayment || 0,
       linkedInvoice: p.linkedInvoice || '',
+      creditAdded: p.creditAdded || 0,
       note: p.note || '', date: p.date || ''
+    }));
+
+    // credit movements — سجل حركة الرصيد الإضافي
+    db.prepare('DELETE FROM credit_movements').run();
+    const insCredit = db.prepare(`
+      INSERT INTO credit_movements
+        (id, partyType, partyName, type, amount, refType, ref, note, date)
+      VALUES (@id, @partyType, @partyName, @type, @amount, @refType, @ref, @note, @date)
+    `);
+    (data.creditMovements || []).forEach(m => insCredit.run({
+      id: m.id || ('CM-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
+      partyType: m.partyType || '', partyName: m.partyName || '',
+      type: m.type || 'add', amount: m.amount || 0,
+      refType: m.refType || '', ref: m.ref || '',
+      note: m.note || '', date: m.date || ''
     }));
   });
 
@@ -622,6 +659,59 @@ function applyCreditToInvoice(creditBalance, invoiceTotal, alreadyPaid = 0) {
   };
 }
 
+// ============================================================
+// سجل حركة الرصيد الإضافي (credit ledger)
+// مصدر الحقيقة الوحيد: كل إضافة/خصم تمر عبر هذه الدوال النقية.
+// تضمن أن نفس الدفعة لا تُحتسب مرتين (idempotent عبر مفتاح المرجع).
+// ============================================================
+const CREDIT_MOVE = { ADD: 'add', DEDUCT: 'deduct' };
+
+// مفتاح فريد يميّز الحركة ويمنع احتسابها مرتين
+function creditMovementKey(m) {
+  return [m.partyType, m.partyName, m.type, m.refType, m.ref].join('|');
+}
+
+// يبني حركة رصيد واحدة موحّدة — الشكل الوحيد لتمثيل حركة الرصيد
+function buildCreditMovement({ partyType, partyName, type, amount, refType = '', ref = '', note = '', date = '' }) {
+  return {
+    id: 'CM-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8),
+    partyType,
+    partyName,
+    type: type === CREDIT_MOVE.DEDUCT ? CREDIT_MOVE.DEDUCT : CREDIT_MOVE.ADD,
+    amount: roundMoney(amount),
+    refType,
+    ref,
+    note,
+    date: date || new Date().toISOString().split('T')[0],
+  };
+}
+
+// يضيف الحركة للسجل مرة واحدة فقط: يتجاهل المكرر (نفس المرجع) والصفر
+function recordCreditMovement(movements, move) {
+  const list = Array.isArray(movements) ? movements : [];
+  if (!move || roundMoney(move.amount) <= CREDIT_EPSILON) return { added: false, movement: null };
+  // المرجع الفارغ = حدث فريد (دفعة مستقلة)؛ المرجع المكرر يُرفض
+  const dup = move.ref && list.some(m => creditMovementKey(m) === creditMovementKey(move));
+  if (dup) return { added: false, movement: null };
+  list.push(move);
+  return { added: true, movement: move };
+}
+
+// الرصيد الإضافي مشتقّاً من السجل: مجموع الإضافات ناقص الخصومات
+function creditBalanceFromMovements(movements, partyType, partyName) {
+  const list = Array.isArray(movements) ? movements : [];
+  const net = list
+    .filter(m => m.partyType === partyType && m.partyName === partyName)
+    .reduce((s, m) => s + (m.type === CREDIT_MOVE.DEDUCT ? -1 : 1) * (roundMoney(m.amount) || 0), 0);
+  return Math.max(0, roundMoney(net));
+}
+
+// يطبّق دلتا الرصيد على قيمة قائمة (دالة نقية) — لا ينزل تحت الصفر
+function applyCreditDelta(currentBalance, type, amount) {
+  const delta = (type === CREDIT_MOVE.DEDUCT ? -1 : 1) * Math.max(0, roundMoney(amount));
+  return Math.max(0, roundMoney((roundMoney(currentBalance) || 0) + delta));
+}
+
 function hasData() {
   try {
     // يعتبر في بيانات لو في فواتير أو زبائن أو موردين — مش items فقط
@@ -642,4 +732,7 @@ module.exports = {
   openDatabase, loadAll, saveAll, migrateFromJSON, hasData, backupTo,
   // رصيد إضافي — دوال نقية مشتركة مع الواجهة
   computeOverpayment, applyCreditToInvoice, roundMoney, CREDIT_EPSILON,
+  // سجل حركة الرصيد الإضافي — مصدر الحقيقة الوحيد
+  CREDIT_MOVE, buildCreditMovement, recordCreditMovement,
+  creditMovementKey, creditBalanceFromMovements, applyCreditDelta,
 };
