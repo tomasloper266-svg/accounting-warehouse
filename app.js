@@ -2447,6 +2447,14 @@ function paymentStatusBadge(inv, size) {
   return `<span style="background:${bg};color:${fg};${st}">${txt}</span>`;
 }
 
+// شارة ربط الدفعة بفاتورة — توضّح للمستخدم الدفعة اليتيمة كبند مستقل (دون توزيع).
+function paymentLinkBadge(p) {
+  if (p && p.linkedInvoice) {
+    return '<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:8px;margin-right:4px">🔗 ' + p.linkedInvoice + '</span>';
+  }
+  return '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;margin-right:4px">⚠️ دفعة غير مرتبطة</span>';
+}
+
 function getCustomerAccount(customerName) {
   const invoices = activeSalesInvoices().filter(i => i.customerName === customerName);
   const cashInvoices     = invoices.filter(i => (i.paymentType||'cash') === 'cash');
@@ -2464,18 +2472,21 @@ function getCustomerAccount(customerName) {
   const linkedPayments     = realPayments.filter(p =>  p.linkedInvoice);
   const standalonePayments = realPayments.filter(p => !p.linkedInvoice);
   // نستثني creditAdded — الفائض ذهب لرصيد إضافي وليس سداداً على الفواتير
-  const totalLinked     = linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
-  const totalStandalone = standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
+  const totalLinked     = roundMoney(linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0));
+  const totalStandalone = roundMoney(standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0));
+  const totalPayments   = roundMoney(totalLinked + totalStandalone);
 
-  const remaining = Math.max(0, totalDeferred - paidOnDeferred - totalLinked - totalStandalone);
-  const totalPaid = totalCash + (totalDeferred - remaining);
+  // الإجمالي العام = مجموع سطور الفواتير حرفياً (المصدر الوحيد invoiceBalance لكل فاتورة).
+  // لا نطرح الدفعات اليتيمة ضمنياً؛ تبقى بنداً مستقلاً ظاهراً للمستخدم (لا توزيع خفي).
+  const remaining = roundMoney(deferredInvoices.reduce((s,i) => s + invoiceBalance(i).remaining, 0));
+  const totalPaid = roundMoney(totalInvoices - remaining);
 
   const cust = (db.customers || []).find(c => c.name === customerName);
   const creditBalance = cust ? (parseFloat(cust.creditBalance) || 0) : 0;
 
   return { invoices, cashInvoices, deferredInvoices, payments,
            totalInvoices, totalCash, totalDeferred,
-           paidOnDeferred, totalStandalone, totalLinked,
+           paidOnDeferred, standalonePayments, totalStandalone, totalLinked, totalPayments,
            totalPaid, remaining, creditBalance };
 }
 
@@ -2500,6 +2511,16 @@ function openCustomerAccount(customerName) {
       document.getElementById('ca-credit-balance').textContent = fmtUSD(acc.creditBalance);
     } else {
       creditRow.style.display = 'none';
+    }
+  }
+  // دفعات غير مرتبطة (يتيمة) — بند مستقل ظاهر؛ لا يُوزّع على الفواتير
+  const standaloneRow = document.getElementById('ca-standalone-row');
+  if (standaloneRow) {
+    if ((acc.totalStandalone || 0) > CREDIT_EPSILON) {
+      standaloneRow.style.display = 'block';
+      document.getElementById('ca-standalone-amount').textContent = fmtUSD(acc.totalStandalone);
+    } else {
+      standaloneRow.style.display = 'none';
     }
   }
   renderCreditHistory('customer', customerName, 'ca-credit-history', 'ca-credit-tbody');
@@ -2532,7 +2553,7 @@ function openCustomerAccount(customerName) {
     : acc.payments.map((p, i) =>
         '<tr>' +
         '<td>' + p.date + '</td>' +
-        '<td>' + (p.note || '—') + '</td>' +
+        '<td>' + (p.note || '—') + ' ' + paymentLinkBadge(p) + '</td>' +
         '<td style="color:var(--green-700)"><strong>' + fmtUSD(p.amount) + '</strong></td>' +
         '<td><button class="btn btn-ghost btn-sm" onclick="deleteCustomerPayment(\'' + customerName + '\',' + i + ')" style="color:var(--red-600)">✕</button></td>' +
         '</tr>'
@@ -2679,7 +2700,7 @@ function printCustomerAccount() {
 <tbody>${acc.invoices.map(i => '<tr><td>' + i.number + '</td><td>' + i.date + '</td><td>' + fmtUSD(i.total) + '</td></tr>').join('')}</tbody></table>
 <h3>💵 الدفعات (${acc.payments.length})</h3>
 <table><thead><tr><th>التاريخ</th><th>ملاحظة</th><th>المبلغ</th></tr></thead>
-<tbody>${acc.payments.map(p => '<tr><td>' + p.date + '</td><td>' + (p.note||'—') + '</td><td>' + fmtUSD(p.amount) + '</td></tr>').join('')}</tbody></table>
+<tbody>${acc.payments.map(p => '<tr><td>' + p.date + '</td><td>' + (p.note||'—') + (p.linkedInvoice ? ' — 🔗 ' + p.linkedInvoice : ' — ⚠️ غير مرتبطة') + '</td><td>' + fmtUSD(p.amount) + '</td></tr>').join('')}</tbody></table>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`);
   win.document.close();
@@ -2707,18 +2728,21 @@ function getSupplierAccount(supplierName) {
   const linkedPayments     = realPayments.filter(p =>  p.linkedInvoice);
   const standalonePayments = realPayments.filter(p => !p.linkedInvoice);
   // نستثني creditAdded — الفائض ذهب لرصيد إضافي وليس سداداً على الفواتير
-  const totalLinked     = linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
-  const totalStandalone = standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0);
+  const totalLinked     = roundMoney(linkedPayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0));
+  const totalStandalone = roundMoney(standalonePayments.reduce((s,p) => s + (parseFloat(p.amount)||0) - (parseFloat(p.creditAdded)||0) + (parseFloat(p.discountOnPayment)||0), 0));
+  const totalPayments   = roundMoney(totalLinked + totalStandalone);
 
-  const remaining = Math.max(0, totalDeferred - paidOnDeferred - totalLinked - totalStandalone);
-  const totalPaid = totalCash + (totalDeferred - remaining);
+  // الإجمالي العام = مجموع سطور الفواتير حرفياً (المصدر الوحيد invoiceBalance لكل فاتورة).
+  // لا نطرح الدفعات اليتيمة ضمنياً؛ تبقى بنداً مستقلاً ظاهراً للمستخدم (لا توزيع خفي).
+  const remaining = roundMoney(deferredInvoices.reduce((s,i) => s + invoiceBalance(i).remaining, 0));
+  const totalPaid = roundMoney(totalInvoices - remaining);
 
   const sup = (db.suppliers || []).find(s => s.name === supplierName);
   const creditBalance = sup ? (parseFloat(sup.creditBalance) || 0) : 0;
 
   return { invoices, cashInvoices, deferredInvoices, payments,
            totalInvoices, totalCash, totalDeferred,
-           paidOnDeferred, totalStandalone, totalLinked,
+           paidOnDeferred, standalonePayments, totalStandalone, totalLinked, totalPayments,
            totalPaid, remaining, creditBalance };
 }
 
@@ -2745,6 +2769,16 @@ function openSupplierAccount(supplierName) {
       creditRow.style.display = 'none';
     }
   }
+  // دفعات غير مرتبطة (يتيمة) — بند مستقل ظاهر؛ لا يُوزّع على الفواتير
+  const standaloneRow = document.getElementById('sa-standalone-row');
+  if (standaloneRow) {
+    if ((acc.totalStandalone || 0) > CREDIT_EPSILON) {
+      standaloneRow.style.display = 'block';
+      document.getElementById('sa-standalone-amount').textContent = fmtUSD(acc.totalStandalone);
+    } else {
+      standaloneRow.style.display = 'none';
+    }
+  }
   renderCreditHistory('supplier', supplierName, 'sa-credit-history', 'sa-credit-tbody');
 
   // جدول الفواتير
@@ -2769,7 +2803,7 @@ function openSupplierAccount(supplierName) {
     : acc.payments.map((p, i) =>
         '<tr>' +
         '<td>' + p.date + '</td>' +
-        '<td>' + (p.note || '—') + '</td>' +
+        '<td>' + (p.note || '—') + ' ' + paymentLinkBadge(p) + '</td>' +
         '<td style="color:var(--green-700)"><strong>' + fmtUSD(p.amount) + '</strong></td>' +
         '<td><button class="btn btn-ghost btn-sm" onclick="deleteSupplierPayment(\'' + supplierName + '\',' + i + ')" style="color:var(--red-600)">✕</button></td>' +
         '</tr>'
@@ -2914,7 +2948,7 @@ function printSupplierAccount() {
 <tbody>${acc.invoices.map(i => '<tr><td>' + i.number + '</td><td>' + i.date + '</td><td>' + fmtUSD(i.total) + '</td></tr>').join('')}</tbody></table>
 <h3>💵 الدفعات (${acc.payments.length})</h3>
 <table><thead><tr><th>التاريخ</th><th>ملاحظة</th><th>المبلغ</th></tr></thead>
-<tbody>${acc.payments.map(p => '<tr><td>' + p.date + '</td><td>' + (p.note||'—') + '</td><td>' + fmtUSD(p.amount) + '</td></tr>').join('')}</tbody></table>
+<tbody>${acc.payments.map(p => '<tr><td>' + p.date + '</td><td>' + (p.note||'—') + (p.linkedInvoice ? ' — 🔗 ' + p.linkedInvoice : ' — ⚠️ غير مرتبطة') + '</td><td>' + fmtUSD(p.amount) + '</td></tr>').join('')}</tbody></table>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`);
   win.document.close();

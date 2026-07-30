@@ -2051,6 +2051,11 @@
       💳 رصيد إضافي للزبون: <span id="ca-credit-balance">0 $</span>
     </div>
 
+    <!-- دفعات غير مرتبطة بفاتورة (يتيمة) — بند مستقل، لا يُوزّع على الفواتير -->
+    <div id="ca-standalone-row" style="display:none;background:var(--amber-100, #fef3c7);border-radius:var(--radius-md);padding:var(--space-2);margin-bottom:var(--space-4);text-align:center;font-size:12px;font-weight:700;color:#92400e;">
+      ⚠️ دفعة غير مرتبطة (غير موزّعة على الفواتير): <span id="ca-standalone-amount">0 $</span>
+    </div>
+
     <!-- إضافة دفعة -->
     <div style="background:var(--surface-secondary);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-4);">
       <div style="font-size:12px;font-weight:600;margin-bottom:var(--space-2);">💵 تسجيل دفعة جديدة</div>
@@ -2144,6 +2149,11 @@
     <!-- رصيد إضافي مستحق لنا من المورد (فائض الدفعات) — يظهر فقط عند وجوده -->
     <div id="sa-credit-row" style="display:none;background:var(--green-100);border-radius:var(--radius-md);padding:var(--space-2);margin-bottom:var(--space-4);text-align:center;font-size:12px;font-weight:700;color:#16a34a;">
       💳 رصيد إضافي مستحق لنا من المورد: <span id="sa-credit-balance">0 $</span>
+    </div>
+
+    <!-- دفعات غير مرتبطة بفاتورة (يتيمة) — بند مستقل، لا يُوزّع على الفواتير -->
+    <div id="sa-standalone-row" style="display:none;background:var(--amber-100, #fef3c7);border-radius:var(--radius-md);padding:var(--space-2);margin-bottom:var(--space-4);text-align:center;font-size:12px;font-weight:700;color:#92400e;">
+      ⚠️ دفعة غير مرتبطة (غير موزّعة على الفواتير): <span id="sa-standalone-amount">0 $</span>
     </div>
 
     <!-- إضافة دفعة -->

@@ -656,6 +656,82 @@ function applyCreditToInvoice(creditBalance, invoiceTotal, alreadyPaid = 0) {
 }
 
 // ============================================================
+// كشف الحساب — دوال نقية مشتركة مع الواجهة (app.js)
+// تضمن اتساقاً رياضياً دائماً بين ثلاثة أرقام:
+//   الإجمالي العام (remaining) = مجموع سطور الفواتير في الجدول = مجموع (متبقي كل فاتورة)
+//   مجموع الدفعات (totalPayments) يُحسب ويُعرض منفصلاً
+//   الدفعات اليتيمة (totalStandalone) تبقى بنداً مستقلاً — لا تُوزَّع ضمنياً على الفواتير
+// نفس المنطق مُكرَّر حرفياً في app.js (الـ renderer لا يستطيع require).
+// ============================================================
+
+// سجل وديعة تلقائي (مضمّن أصلاً في paidAmount للفاتورة) — يُستثنى لتفادي الاحتساب المزدوج.
+function isAutoDepositRecord(p) {
+  return !!p && (p._deposit === true || /^دفعة مع الفاتورة /.test(p.description || ''));
+}
+
+// صافي ما تسدّده الدفعة على الفواتير: المبلغ − الفائض المحوّل لرصيد إضافي + الخصم على الدفعة.
+function paymentSettlement(p) {
+  return (parseFloat(p.amount) || 0)
+       - (parseFloat(p.creditAdded) || 0)
+       + (parseFloat(p.discountOnPayment) || 0);
+}
+
+// المتبقي الحي على فاتورة واحدة — المصدر الوحيد لسطر الفاتورة في كشف الحساب.
+// المدفوع = الوديعة عند الإنشاء + الدفعات اللاحقة المربوطة بهذه الفاتورة حصراً.
+// الدفعات اليتيمة (بلا linkedInvoice) لا تُحتسب هنا — لا توزيع خفي على الفواتير.
+function computeInvoiceRemaining(inv, payments) {
+  const total = roundMoney(inv.total || 0);
+  if ((inv.paymentType || 'cash') !== 'deferred') {
+    return { total, paid: total, remaining: 0, closed: true, isDeferred: false };
+  }
+  const deposit = roundMoney(parseFloat(inv.paidAmount) || 0);
+  const later = (payments || [])
+    .filter(p => p.linkedInvoice === inv.number && !isAutoDepositRecord(p))
+    .reduce((s, p) => s + paymentSettlement(p), 0);
+  const paid = roundMoney(deposit + later);
+  const remaining = Math.max(0, roundMoney(total - paid));
+  return { total, paid, remaining, closed: remaining <= CREDIT_EPSILON, isDeferred: true };
+}
+
+// ملخّص كشف حساب طرف (زبون/مورد) — أرقام متسقة رياضياً دائماً.
+// invoices: فواتير الطرف، payments: دفعاته، creditBalance: رصيده الإضافي.
+function computeAccountSummary(args) {
+  const invoices      = (args && args.invoices) || [];
+  const allPayments   = (args && args.payments) || [];
+  const creditBalance = roundMoney((args && args.creditBalance) || 0);
+
+  // سجلات الوديعة التلقائية مضمّنة في paidAmount — تُستثنى لتفادي الاحتساب المزدوج.
+  const realPayments     = allPayments.filter(p => !isAutoDepositRecord(p));
+  const cashInvoices     = invoices.filter(i => (i.paymentType || 'cash') === 'cash');
+  const deferredInvoices = invoices.filter(i => (i.paymentType || 'cash') === 'deferred');
+
+  const totalInvoices = roundMoney(invoices.reduce((s, i) => s + (i.total || 0), 0));
+  const totalCash     = roundMoney(cashInvoices.reduce((s, i) => s + (i.total || 0), 0));
+  const totalDeferred = roundMoney(deferredInvoices.reduce((s, i) => s + (i.total || 0), 0));
+
+  const linkedPayments     = realPayments.filter(p =>  p.linkedInvoice);
+  const standalonePayments = realPayments.filter(p => !p.linkedInvoice);
+  const totalLinked     = roundMoney(linkedPayments.reduce((s, p) => s + paymentSettlement(p), 0));
+  const totalStandalone = roundMoney(standalonePayments.reduce((s, p) => s + paymentSettlement(p), 0));
+  const totalPayments   = roundMoney(realPayments.reduce((s, p) => s + paymentSettlement(p), 0));
+
+  // الإجمالي العام = مجموع سطور الفواتير حرفياً (المصدر الوحيد computeInvoiceRemaining لكل فاتورة).
+  // لا نطرح الدفعات اليتيمة ضمنياً — تبقى بنداً مستقلاً ظاهراً للمستخدم.
+  const perInvoice = deferredInvoices.map(inv => computeInvoiceRemaining(inv, realPayments));
+  const invoiceRemaining = roundMoney(perInvoice.reduce((s, b) => s + b.remaining, 0));
+  const remaining  = invoiceRemaining;
+  const totalPaid  = roundMoney(totalInvoices - remaining); // المدفوع على الفواتير = الإجمالي − المتبقي
+
+  return {
+    totalInvoices, totalCash, totalDeferred,
+    totalLinked, totalStandalone, totalPayments,
+    standalonePayments,
+    invoiceRemaining, remaining, totalPaid,
+    creditBalance,
+  };
+}
+
+// ============================================================
 // سجل حركة الرصيد الإضافي (creditLedger) — محرك نقي مشترك
 // كل إضافة/خصم للرصيد الإضافي يجب أن يمر عبر هذا المحرك (لا تعديل مباشر):
 //   - recordCreditMovement: يطفّر رصيد الطرف ويضيف قيداً مدققاً.
@@ -734,6 +810,8 @@ module.exports = {
   openDatabase, loadAll, saveAll, migrateFromJSON, hasData, backupTo,
   // رصيد إضافي — دوال نقية مشتركة مع الواجهة
   computeOverpayment, applyCreditToInvoice, roundMoney, CREDIT_EPSILON,
+  // كشف الحساب — دوال نقية مشتركة مع الواجهة
+  isAutoDepositRecord, paymentSettlement, computeInvoiceRemaining, computeAccountSummary,
   // سجل حركة الرصيد الإضافي — محرك نقي مشترك مع الواجهة
   recordCreditMovement, reverseCreditMovements, creditMovementKey,
 };
