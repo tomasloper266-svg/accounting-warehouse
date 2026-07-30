@@ -1026,25 +1026,25 @@ function printInvoice(invNumber) {
   const type = isSale ? 'فاتورة بيع' : 'فاتورة شراء';
   const party = inv.customerName || inv.supplierName || '—';
   const partyLabel = isSale ? 'الزبون' : 'المورد';
+  const partyOwnerLabel = isSale ? 'للزبون' : 'للمورد';
   const co = db.company || {};
-  const bal = invoiceBalance(inv);           // الحالة والمتبقي محسوبان حياً
-  const pt = inv.paymentType || 'cash';
-  const isPaid = bal.closed;
-  const discount = inv.discount || 0;
-  const subtotal = inv.subtotal || inv.total;
+  const bal = invoiceBalance(inv);           // المدفوع والمتبقي محسوبان حياً بنفس منطق الحساب الحالي
   const note = inv.note || '';
-  const rate = getRate();
+  // الرصيد الإضافي المستخدم على هذه الفاتورة تحديداً (مصدره حقل الفاتورة نفسه)
+  const creditApplied = parseFloat(inv.creditApplied) || 0;
+  // الرصيد الإضافي المتبقي للطرف بعد هذه الفاتورة (حقل حي على سجل الزبون/المورد)
+  const partyRecord = isSale
+    ? (db.customers || []).find(c => c.name === party)
+    : (db.suppliers || []).find(s => s.name === party);
+  const creditBalance = partyRecord ? (parseFloat(partyRecord.creditBalance) || 0) : 0;
 
-  const linesHTML = inv.lines.map((l,i) => {
+  const linesHTML = inv.lines.map(l => {
     const item = db.items.find(it=>it.id===l.itemId);
-    const unitLabel = l.unitType === 'unit2' && item?.unit2 ? item.unit2 : (item?.unit || '');
     return `<tr>
-      <td class="col-num">${i+1}</td>
       <td style="font-weight:600">${item?.name||l.itemId}</td>
-      <td class="col-qty">${unitLabel}</td>
       <td class="col-qty">${l.qty}</td>
-      <td class="col-price">$${l.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-      <td class="col-total">$${l.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td class="col-price">${fmtUSD(l.price)}</td>
+      <td class="col-total">${fmtUSD(l.total)}</td>
     </tr>`;
   }).join('');
 
@@ -1067,7 +1067,7 @@ function printInvoice(invNumber) {
   .print-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
   .print-info-box { background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:12px 14px; }
   .print-info-box-title { font-size:10px; font-weight:800; color:#6b7280; text-transform:uppercase; letter-spacing:.6px; margin-bottom:6px; }
-  .print-info-row { display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:3px; }
+  .print-info-row { display:flex; align-items:center; gap:6px; font-size:12px; }
   .print-info-label { color:#9ca3af; font-weight:600; min-width:60px; }
   .print-info-value { font-weight:700; color:#111; }
   .print-table { width:100%; border-collapse:collapse; margin-bottom:20px; font-size:12px; }
@@ -1077,29 +1077,28 @@ function printInvoice(invNumber) {
   .print-table tbody td { padding:8px 10px; border-bottom:1px solid #f1f5f9; color:#374151; }
   .print-table tbody tr:nth-child(even) td { background:#fafbff; }
   .print-table tbody tr:last-child td { border-bottom:none; }
-  .col-num   { width:32px; text-align:center; color:#9ca3af; font-family:monospace; }
   .col-qty   { width:70px; text-align:center; font-weight:700; }
-  .col-price { width:90px; text-align:center; font-family:monospace; }
-  .col-total { width:100px; text-align:center; font-weight:800; color:#312e81; font-family:monospace; }
+  .col-price { width:100px; text-align:center; font-family:monospace; }
+  .col-total { width:110px; text-align:center; font-weight:800; color:#312e81; font-family:monospace; }
   .print-totals { display:flex; justify-content:flex-end; margin-bottom:16px; }
-  .print-totals-box { background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:14px 20px; min-width:260px; }
-  .print-total-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:12px; border-bottom:1px solid #f1f5f9; }
+  .print-totals-box { background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:14px 20px; min-width:300px; }
+  .print-total-row { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:7px 0; font-size:13px; border-bottom:1px solid #f1f5f9; }
   .print-total-row:last-child { border-bottom:none; }
-  .print-total-label { color:#6b7280; font-weight:600; }
+  .print-total-label { color:#6b7280; font-weight:700; }
   .print-total-value { font-weight:800; color:#374151; font-family:monospace; }
-  .print-grand-total { border-top:2px solid #4f46e5 !important; margin-top:4px; padding-top:8px !important; }
-  .print-grand-total .print-total-label { font-size:14px; font-weight:900; color:#312e81; }
-  .print-grand-total .print-total-value { font-size:16px; font-weight:900; color:#4f46e5; }
-  .print-payment-status { display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border-radius:8px; font-weight:800; font-size:13px; margin-bottom:16px; }
-  .print-paid     { background:#dcfce7; color:#166534; border:1.5px solid #bbf7d0; }
-  .print-deferred { background:#fef3c7; color:#92400e; border:1.5px solid #fde68a; }
+  .print-total-row.total .print-total-label,
+  .print-total-row.total .print-total-value { font-size:15px; font-weight:900; color:#312e81; }
+  .print-total-row.due .print-total-label,
+  .print-total-row.due .print-total-value { color:#dc2626; font-size:14px; font-weight:900; }
+  .print-total-row.settled .print-total-label,
+  .print-total-row.settled .print-total-value { color:#16a34a; font-size:14px; font-weight:900; }
+  .print-total-row.credit-applied .print-total-label,
+  .print-total-row.credit-applied .print-total-value { color:#16a34a; }
+  .print-total-row.credit-balance .print-total-label,
+  .print-total-row.credit-balance .print-total-value { color:#2563eb; }
   .print-note { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12px; color:#92400e; }
-  .print-sign-row { display:grid; grid-template-columns:1fr 1fr; gap:60px; margin-top:32px; }
-  .print-sign-box { text-align:center; padding-top:8px; border-top:1.5px dashed #d1d5db; font-size:12px; color:#9ca3af; }
-  .print-footer { text-align:center; padding-top:16px; border-top:2px dashed #e5e7eb; margin-top:20px; }
-  .print-footer-msg { font-size:14px; font-weight:800; color:#4f46e5; margin-bottom:6px; }
-  .print-footer-contact { font-size:11px; color:#9ca3af; }
-  .print-watermark { font-size:9px; color:#d1d5db; margin-top:8px; }
+  .print-footer { text-align:center; padding-top:14px; border-top:2px dashed #e5e7eb; margin-top:20px; }
+  .print-footer-msg { font-size:13px; font-weight:800; color:#4f46e5; }
   @media print { body { padding:10px; } @page { margin:12mm 10mm; size:A4; } }
 </style>
 </head>
@@ -1125,25 +1124,15 @@ function printInvoice(invNumber) {
       <div class="print-info-row"><span class="print-info-label">الاسم:</span><span class="print-info-value">${party}</span></div>
     </div>
     <div class="print-info-box">
-      <div class="print-info-box-title">بيانات الفاتورة</div>
-      <div class="print-info-row"><span class="print-info-label">التاريخ:</span><span class="print-info-value">${inv.date}</span></div>
-      <div class="print-info-row"><span class="print-info-label">الوقت:</span><span class="print-info-value">${inv.time || '—'}</span></div>
-      <div class="print-info-row"><span class="print-info-label">العملة:</span><span class="print-info-value">${inv.currency || 'USD'}</span></div>
+      <div class="print-info-box-title">التاريخ</div>
+      <div class="print-info-row"><span class="print-info-value">${inv.date}</span></div>
     </div>
-  </div>
-
-  <div class="${isPaid ? 'print-payment-status print-paid' : 'print-payment-status print-deferred'}">
-    ${isPaid
-       ? (bal.isDeferred ? '✅ مسدّدة بالكامل' : '✅ تم الدفع نقداً')
-       : '⏳ آجل — المدفوع: ' + fmtUSD(bal.paid) + ' / المتبقي: ' + fmtUSD(bal.remaining)}
   </div>
 
   <table class="print-table">
     <thead>
       <tr>
-        <th class="col-num">#</th>
         <th>اسم المادة</th>
-        <th class="col-qty">الوحدة</th>
         <th class="col-qty">الكمية</th>
         <th class="col-price">السعر</th>
         <th class="col-total">الإجمالي</th>
@@ -1154,31 +1143,33 @@ function printInvoice(invNumber) {
 
   <div class="print-totals">
     <div class="print-totals-box">
-      ${subtotal !== inv.total ? `<div class="print-total-row"><span class="print-total-label">المجموع</span><span class="print-total-value">$${subtotal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>` : ''}
-      ${discount > 0 ? `<div class="print-total-row"><span class="print-total-label">خصم (${discount}%)</span><span class="print-total-value" style="color:#dc2626">-$${(subtotal*discount/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>` : ''}
-      ${inv.creditApplied > 0 ? `<div class="print-total-row"><span class="print-total-label" style="color:#16a34a;font-weight:800">💳 مدفوع من الرصيد الإضافي</span><span class="print-total-value" style="color:#16a34a">$${inv.creditApplied.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span></div>` : ''}
-      <div class="print-total-row print-grand-total">
-        <span class="print-total-label">الإجمالي النهائي</span>
-        <span class="print-total-value">$${inv.total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+      <div class="print-total-row total">
+        <span class="print-total-label">المبلغ الإجمالي</span>
+        <span class="print-total-value">${fmtUSD(inv.total)}</span>
       </div>
-      <div class="print-total-row" style="opacity:.7;font-size:11px">
-        <span>بالليرة السورية الجديدة</span>
-        <span>${Math.round(inv.total * rate / 100).toLocaleString('ar-SY')} ل.س ج</span>
+      <div class="print-total-row">
+        <span class="print-total-label">المدفوع</span>
+        <span class="print-total-value">${fmtUSD(bal.paid)}</span>
       </div>
+      <div class="print-total-row ${bal.remaining > 0.005 ? 'due' : 'settled'}">
+        <span class="print-total-label">المتبقي (الدين)</span>
+        <span class="print-total-value">${fmtUSD(bal.remaining)}</span>
+      </div>
+      ${creditApplied > 0 ? `<div class="print-total-row credit-applied">
+        <span class="print-total-label">💳 مستخدم من الرصيد الإضافي</span>
+        <span class="print-total-value">${fmtUSD(creditApplied)}</span>
+      </div>` : ''}
+      ${creditBalance > 0 ? `<div class="print-total-row credit-balance">
+        <span class="print-total-label">💰 الرصيد الإضافي المتبقي ${partyOwnerLabel}</span>
+        <span class="print-total-value">${fmtUSD(creditBalance)}</span>
+      </div>` : ''}
     </div>
   </div>
 
   ${note ? `<div class="print-note">📝 ملاحظة: ${note}</div>` : ''}
 
-  <div class="print-sign-row">
-    <div class="print-sign-box">توقيع المستلم</div>
-    <div class="print-sign-box">ختم الشركة وتوقيع المسؤول</div>
-  </div>
-
   <div class="print-footer">
     <div class="print-footer-msg">${co.slogan || 'شكراً لتعاملكم معنا'} 🌟</div>
-    <div class="print-footer-contact">${co.phone ? '☎ ' + co.phone : ''} ${co.email ? '  |  ✉ ' + co.email : ''}</div>
-    <div class="print-watermark">تم إنشاء هذه الفاتورة بواسطة برنامج السلطان للمحاسبة</div>
   </div>
 
 <script>window.onload=()=>{document.fonts.ready.then(()=>window.print());};<\/script>
