@@ -2301,6 +2301,30 @@ function applyCreditToInvoice(creditBalance, invoiceTotal, alreadyPaid = 0) {
            amountDue: roundMoney(due - creditApplied) };
 }
 
+// مردود المبيع — دوال نقية (مطابقة لـ db.js). الريندرر لا يستطيع require.
+// أقصى كمية قابلة للإرجاع = المباع − المُرجع سابقاً لنفس البند.
+function computeReturnableQty(soldQty, priorReturnedQty) {
+  return roundMoney(Math.max(0, (Number(soldQty) || 0) - (Number(priorReturnedQty) || 0)));
+}
+
+// تحقق من كمية إرجاع مطلوبة — تُرفض إذا كانت صفراً أو تتجاوز المتاح.
+function validateReturnQty(requestedQty, soldQty, priorReturnedQty) {
+  const returnable = computeReturnableQty(soldQty, priorReturnedQty);
+  const q = Number(requestedQty) || 0;
+  if (q <= 0) return { ok: false, reason: 'zero', returnable };
+  if (roundMoney(q) > roundMoney(returnable) + CREDIT_EPSILON) return { ok: false, reason: 'exceeds', returnable };
+  return { ok: true, returnable };
+}
+
+// أثر المردود على الحساب: يُسدّد الدين المتبقي أولاً، والفائض يذهب لرصيد إضافي.
+function computeSalesReturnEffect(invoiceRemaining, returnValue) {
+  const rem = Math.max(0, roundMoney(invoiceRemaining));
+  const val = Math.max(0, roundMoney(returnValue));
+  const debtReduction = roundMoney(Math.min(val, rem));
+  const creditAdded   = roundMoney(val - debtReduction);
+  return { debtReduction, creditAdded };
+}
+
 // ============================================================
 // سجل حركة الرصيد الإضافي — المسار الموحّد (مطابق لـ db.js)
 // كل المسارات الثلاثة (فاتورة / دفعة كشف / إيصال) تعدّل الرصيد الإضافي
@@ -3431,6 +3455,227 @@ function printCurrentInvoice() {
   db.salesInvoices.push(fakeInv);
   printInvoice(num);
   db.salesInvoices.pop();
+}
+
+// ============================================================
+// مردود المبيع (Sales Return) — مرتبط بفاتورة بيع فعلية
+// زر "مردود" بالأعلى ← مودال كرتين ← كرت "مردود مبيع" يفتح هذا التدفق.
+// الترقيم RET-001 مستقل، يعيد المخزون، ويوزّع القيمة بين خصم الدين والرصيد الإضافي.
+// ============================================================
+let srState = { invoiceNumber: '', lines: [] };
+
+// مودال الاختيار (كرتان: مردود مبيع / مردود مشتريات)
+function openReturnsMenu() {
+  const m = document.getElementById('returns-menu-modal');
+  if (m) { m.classList.remove('hidden'); m.style.display = 'flex'; }
+}
+function closeReturnsMenu() {
+  const m = document.getElementById('returns-menu-modal');
+  if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+}
+
+// رقم مردود تسلسلي RET-001 — مستقل عن ترقيم الفواتير وعن مرتجعات النظام القديم (RET-S-/RET-P-).
+function nextSalesReturnNumber() {
+  const nums = (db.returns || [])
+    .map(r => { const m = /^RET-(\d+)$/.exec(r.number || ''); return m ? parseInt(m[1], 10) : 0; });
+  const max = nums.length ? Math.max(0, ...nums) : 0;
+  return 'RET-' + String(max + 1).padStart(3, '0');
+}
+
+// مجموع ما سبق إرجاعه لبند مصدر (srcLine) من مردودات مبيع فاتورة معيّنة.
+function priorReturnedForSaleLine(invNumber, srcLine) {
+  return roundMoney((db.returns || [])
+    .filter(r => r.type === 'sale' && r.refInvoice === invNumber)
+    .reduce((s, r) => s + (r.lines || [])
+      .filter(l => l.srcLine === srcLine)
+      .reduce((ss, l) => ss + (parseFloat(l.qty) || 0), 0), 0));
+}
+
+function openSalesReturn() {
+  closeReturnsMenu();
+  srState = { invoiceNumber: '', lines: [] };
+  const m = document.getElementById('sales-return-modal');
+  if (m) { m.classList.remove('hidden'); m.style.display = 'flex'; }
+  document.getElementById('sr-picker-view').style.display = 'block';
+  document.getElementById('sr-detail-view').style.display = 'none';
+  const s = document.getElementById('sr-invoice-search');
+  if (s) s.value = '';
+  srRenderInvoicePicker('');
+}
+
+function closeSalesReturn() {
+  const m = document.getElementById('sales-return-modal');
+  if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+}
+
+function srFilterInvoices() {
+  srRenderInvoicePicker(document.getElementById('sr-invoice-search')?.value || '');
+}
+
+function srRenderInvoicePicker(filter) {
+  const tbody = document.getElementById('sr-invoice-list');
+  if (!tbody) return;
+  const q = (filter || '').toLowerCase().trim();
+  const list = activeSalesInvoices()
+    .filter(inv => !q || (inv.number || '').toLowerCase().includes(q) || (inv.customerName || '').toLowerCase().includes(q))
+    .slice().reverse();
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:var(--s5)">لا توجد فواتير بيع مطابقة</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(inv => {
+    const bal = invoiceBalance(inv);
+    const statusBadge = bal.closed
+      ? '<span class="badge badge-green">مسدّدة</span>'
+      : '<span class="badge badge-red">آجلة — متبقٍّ ' + fmtUSD(bal.remaining) + '</span>';
+    return '<tr onclick="srSelectInvoice(\'' + inv.number + '\')" style="cursor:pointer">' +
+      '<td><span class="inv-num">' + inv.number + '</span></td>' +
+      '<td>' + (inv.customerName || '—') + '</td>' +
+      '<td>' + (inv.date || '—') + '</td>' +
+      '<td>' + fmtUSD(inv.total) + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function srSelectInvoice(number) {
+  const inv = activeSalesInvoices().find(i => i.number === number);
+  if (!inv) { showToast('الفاتورة غير موجودة', 'error'); return; }
+  srState.invoiceNumber = number;
+  srState.lines = (inv.lines || []).map((l, idx) => {
+    const item = db.items.find(it => it.id === l.itemId);
+    const unitLabel = (l.unitType === 'unit2' && item && item.unit2) ? item.unit2 : (item ? item.unit : '');
+    const prior = priorReturnedForSaleLine(number, idx);
+    const soldQty = parseFloat(l.qty) || 0;
+    return {
+      srcLine: idx, itemId: l.itemId, name: item ? item.name : l.itemId,
+      unitLabel, unitType: l.unitType || 'unit', price: parseFloat(l.price) || 0,
+      soldQty, priorReturned: prior,
+      returnable: computeReturnableQty(soldQty, prior), returnQty: 0,
+    };
+  });
+  document.getElementById('sr-picker-view').style.display = 'none';
+  document.getElementById('sr-detail-view').style.display = 'block';
+  const bal = invoiceBalance(inv);
+  document.getElementById('sr-inv-label').textContent = inv.number + ' — ' + (inv.customerName || '—');
+  document.getElementById('sr-inv-meta').textContent = (inv.date || '') + ' · إجمالي ' + fmtUSD(inv.total) +
+    ' · ' + (inv.paymentType === 'deferred' ? 'آجلة (متبقٍّ ' + fmtUSD(bal.remaining) + ')' : 'نقدية (مسدّدة)');
+  document.getElementById('sr-return-number').textContent = nextSalesReturnNumber();
+  const dEl = document.getElementById('sr-return-date');
+  if (dEl) dEl.value = todayStr();
+  srRenderLines();
+}
+
+function srBackToPicker() {
+  document.getElementById('sr-picker-view').style.display = 'block';
+  document.getElementById('sr-detail-view').style.display = 'none';
+  srRenderInvoicePicker(document.getElementById('sr-invoice-search')?.value || '');
+}
+
+function srSetFull() { srState.lines.forEach(l => { l.returnQty = l.returnable; }); srRenderLines(); }
+function srClearQty() { srState.lines.forEach(l => { l.returnQty = 0; }); srRenderLines(); }
+
+function srOnReturnQtyChange(i, val) {
+  const line = srState.lines[i];
+  if (!line) return;
+  let q = parseFloat(val) || 0;
+  if (q < 0) q = 0;
+  if (q > line.returnable) { q = line.returnable; showToast('الحد الأقصى للإرجاع ' + line.returnable + ' ' + line.unitLabel, 'error'); }
+  line.returnQty = roundMoney(q);
+  srRenderLines();
+}
+
+function srRenderLines() {
+  const tbody = document.getElementById('sr-lines');
+  if (!tbody) return;
+  tbody.innerHTML = srState.lines.map((l, i) => {
+    const disabled = l.returnable <= 0 ? 'disabled' : '';
+    const lineTotal = roundMoney(l.returnQty * l.price);
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + l.name + '</td>' +
+      '<td style="text-align:center">' + l.soldQty + ' ' + l.unitLabel + '</td>' +
+      '<td style="text-align:center">' + (l.priorReturned > 0 ? l.priorReturned : '—') + '</td>' +
+      '<td style="text-align:center;font-weight:700;color:var(--brand-600)">' + l.returnable + '</td>' +
+      '<td><input type="number" class="input input-sm" style="width:90px" min="0" max="' + l.returnable + '" step="0.01" value="' + l.returnQty + '" ' + disabled + ' onchange="srOnReturnQtyChange(' + i + ',this.value)"></td>' +
+      '<td style="text-align:center">' + fmtUSD(l.price) + '</td>' +
+      '<td style="text-align:center;font-weight:700">' + (lineTotal > 0 ? fmtUSD(lineTotal) : '—') + '</td>' +
+    '</tr>';
+  }).join('');
+  srRenderSummary();
+}
+
+function srComputeTotal() {
+  return roundMoney(srState.lines.reduce((s, l) => s + (l.returnQty * l.price), 0));
+}
+
+function srRenderSummary() {
+  const inv = activeSalesInvoices().find(i => i.number === srState.invoiceNumber);
+  const total = srComputeTotal();
+  const remaining = inv ? invoiceBalance(inv).remaining : 0;
+  const eff = computeSalesReturnEffect(remaining, total);
+  const totalEl = document.getElementById('sr-total');
+  if (totalEl) totalEl.textContent = fmtUSD(total);
+  const effEl = document.getElementById('sr-effect');
+  if (!effEl) return;
+  if (total <= 0) { effEl.innerHTML = '<span style="color:var(--text-muted)">حدّد كميات الإرجاع لمعاينة الأثر</span>'; return; }
+  const parts = [];
+  if (eff.debtReduction > CREDIT_EPSILON) parts.push('<span style="color:var(--danger-600);font-weight:700">خصم من الدين: ' + fmtUSD(eff.debtReduction) + '</span>');
+  if (eff.creditAdded > CREDIT_EPSILON) parts.push('<span style="color:var(--success-600);font-weight:700">رصيد إضافي للزبون: ' + fmtUSD(eff.creditAdded) + '</span>');
+  effEl.innerHTML = parts.join(' &nbsp;·&nbsp; ') || '—';
+}
+
+function saveSalesReturn() {
+  const inv = activeSalesInvoices().find(i => i.number === srState.invoiceNumber);
+  if (!inv) { showToast('اختر فاتورة بيع أولاً', 'error'); return; }
+  const chosen = srState.lines.filter(l => (l.returnQty || 0) > 0);
+  if (!chosen.length) { showToast('حدّد كمية إرجاع لصنف واحد على الأقل', 'error'); return; }
+
+  // إعادة التحقق — منع تجاوز المتاح (يراعي مردودات سابقة)
+  for (const l of chosen) {
+    const prior = priorReturnedForSaleLine(srState.invoiceNumber, l.srcLine);
+    const v = validateReturnQty(l.returnQty, l.soldQty, prior);
+    if (!v.ok) { showToast('كمية إرجاع "' + l.name + '" غير صالحة (المتاح ' + v.returnable + ')', 'error'); return; }
+  }
+
+  const total = roundMoney(chosen.reduce((s, l) => s + (l.returnQty * l.price), 0));
+  const remaining = invoiceBalance(inv).remaining;
+  const eff = computeSalesReturnEffect(remaining, total);
+  const number = nextSalesReturnNumber();
+  const date = document.getElementById('sr-return-date')?.value || todayStr();
+  const customerName = inv.customerName || '';
+
+  const ret = {
+    number, type: 'sale', date, party: customerName,
+    refInvoice: inv.number, total,
+    debtReduction: eff.debtReduction, creditAdded: eff.creditAdded,
+    note: 'مردود مبيع للفاتورة ' + inv.number,
+    lines: chosen.map(l => ({
+      itemId: l.itemId, qty: roundMoney(l.returnQty), price: l.price,
+      total: roundMoney(l.returnQty * l.price), unitType: l.unitType, srcLine: l.srcLine,
+    })),
+  };
+  if (!db.returns) db.returns = [];
+  db.returns.push(ret);
+
+  // أثر الحساب — موازٍ تماماً لمنطق الدفعات:
+  //  • تخفيض الدين المخزّن (balance) بمقدار debtReduction (invoiceBalance يعكسه اشتقاقياً).
+  //  • الفائض (creditAdded) عبر سجل الرصيد الإضافي الموحّد (مفتاح يمنع الازدواج).
+  const cust = (db.customers || []).find(c => c.name === customerName);
+  if (cust && eff.debtReduction > CREDIT_EPSILON) {
+    cust.balance = Math.max(0, roundMoney((cust.balance || 0) - eff.debtReduction));
+  }
+  if (eff.creditAdded > CREDIT_EPSILON) {
+    applyCreditMovement({ partyType: 'customer', partyName: customerName, delta: eff.creditAdded,
+      refType: 'return', ref: number, date, key: 'return-add:' + number });
+  }
+
+  if (inv.paymentType === 'deferred') inv.paymentStatus = invoiceBalance(inv).closed ? 'paid' : 'partial';
+
+  saveData(db);
+  showToast('✅ تم حفظ مردود المبيع ' + number + ' — المخزون والحساب تحدّثا', 'success');
+  closeSalesReturn();
+  if (typeof renderReturns === 'function') { try { renderReturns(); } catch (e) {} }
 }
 
 // ============================================================
