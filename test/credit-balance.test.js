@@ -268,5 +268,122 @@ if (!sqliteAvailable) {
   });
 }
 
+// ------------------------------------------------------------
+// 5) سجل حركة الرصيد الإضافي — المحرك الموحّد (نفس منطق app.js حرفياً)
+//    يغطي: المسارات الثلاثة، منع الازدواجية، وارتباط الحركة بالحساب الصحيح.
+// ------------------------------------------------------------
+console.log('\n→ سجل حركة الرصيد الإضافي (المحرك الموحّد)');
+
+const { recordCreditMovement, reverseCreditMovements } = dbm;
+
+// استدعاء مطابق لـ applyCreditMovement في app.js
+function addCredit(ledger, party, delta, refType, ref, key) {
+  return recordCreditMovement(ledger, party, {
+    partyType: party._t, partyName: party.name, delta, refType, ref, key
+  });
+}
+
+test('المسار 1 (فاتورة): تخصم من الرصيد وتُقيّد deduct مرتبطة بالفاتورة', () => {
+  const ledger = [];
+  const cust = { _t:'customer', name:'زبون أ', creditBalance: 100 };
+  const mv = addCredit(ledger, cust, -30, 'invoice', 'SAL-001', 'invoice-deduct:SAL-001');
+  assert.strictEqual(cust.creditBalance, 70);
+  assert.strictEqual(mv.type, 'deduct');
+  assert.strictEqual(mv.ref, 'SAL-001');
+  assert.strictEqual(ledger.length, 1);
+});
+
+test('المسار 2 (دفعة كشف): الفائض يُضاف رصيداً ويُقيّد add مرتبطاً بالدفعة', () => {
+  const ledger = [];
+  const cust = { _t:'customer', name:'زبون ب', creditBalance: 0 };
+  addCredit(ledger, cust, 40, 'payment', 'PID-1', 'payment-add:PID-1');
+  assert.strictEqual(cust.creditBalance, 40);
+  assert.strictEqual(ledger[0].type, 'add');
+  assert.strictEqual(ledger[0].refType, 'payment');
+});
+
+test('المسار 3 (إيصال مستقل): الفائض يُضاف رصيداً مرتبطاً بالإيصال', () => {
+  const ledger = [];
+  const sup = { _t:'supplier', name:'مورد ج', creditBalance: 10 };
+  addCredit(ledger, sup, 25, 'receipt', 'REC-005', 'receipt-add:REC-005');
+  assert.strictEqual(sup.creditBalance, 35);
+  assert.strictEqual(ledger[0].ref, 'REC-005');
+  assert.strictEqual(ledger[0].refType, 'receipt');
+});
+
+test('اتساق: نفس المبلغ عبر أي من المسارات الثلاثة يعطي نفس الرصيد', () => {
+  const paths = [['invoice','I1'], ['payment','P1'], ['receipt','R1']];
+  const results = paths.map(([rt, ref]) => {
+    const p = { _t:'customer', name:'ن', creditBalance: 0 };
+    addCredit([], p, 50, rt, ref, rt + ':' + ref);
+    return p.creditBalance;
+  });
+  assert.deepStrictEqual(results, [50, 50, 50]);
+});
+
+test('منع الازدواجية: نفس المفتاح لا يُطبّق مرتين', () => {
+  const ledger = [];
+  const cust = { _t:'customer', name:'زبون د', creditBalance: 0 };
+  const first  = addCredit(ledger, cust, 20, 'payment', 'PID-9', 'payment-add:PID-9');
+  const second = addCredit(ledger, cust, 20, 'payment', 'PID-9', 'payment-add:PID-9');
+  assert.ok(first, 'التطبيق الأول ينجح');
+  assert.strictEqual(second, null, 'التكرار يُرفض');
+  assert.strictEqual(cust.creditBalance, 20, 'الرصيد يُضاف مرة واحدة فقط');
+  assert.strictEqual(ledger.length, 1);
+});
+
+test('العزل: حركة طرف لا تؤثر على طرف آخر، والعكس يطابق الطرف+المرجع فقط', () => {
+  const ledger = [];
+  const a = { _t:'customer', name:'A', creditBalance: 0 };
+  const b = { _t:'customer', name:'B', creditBalance: 0 };
+  addCredit(ledger, a, 30, 'receipt', 'R1', 'receipt-add:R1');
+  addCredit(ledger, b, 70, 'receipt', 'R2', 'receipt-add:R2');
+  const n = reverseCreditMovements(ledger, b, { partyType:'customer', partyName:'B', ref:'R2' });
+  assert.strictEqual(n, 1);
+  assert.strictEqual(b.creditBalance, 0);
+  assert.strictEqual(a.creditBalance, 30, 'رصيد A لم يتأثر');
+  assert.strictEqual(ledger.length, 1);
+});
+
+test('العزل بالنوع: زبون ومورد بنفس الاسم لا يتداخلان', () => {
+  const ledger = [];
+  const cust = { _t:'customer', name:'مشترك', creditBalance: 0 };
+  const sup  = { _t:'supplier', name:'مشترك', creditBalance: 0 };
+  addCredit(ledger, cust, 10, 'payment', 'PC', 'payment-add:PC');
+  addCredit(ledger, sup, 90, 'payment', 'PS', 'payment-add:PS');
+  reverseCreditMovements(ledger, cust, { partyType:'customer', partyName:'مشترك', ref:'PC' });
+  assert.strictEqual(cust.creditBalance, 0);
+  assert.strictEqual(sup.creditBalance, 90, 'المورد بنفس الاسم لم يتأثر');
+});
+
+test('حذف دفعة: العكس يعيد الرصيد ويُفرّغ القيد', () => {
+  const ledger = [];
+  const cust = { _t:'customer', name:'زبون هـ', creditBalance: 0 };
+  addCredit(ledger, cust, 45, 'payment', 'PID-D', 'payment-add:PID-D');
+  reverseCreditMovements(ledger, cust, { partyType:'customer', partyName:'زبون هـ', ref:'PID-D' });
+  assert.strictEqual(cust.creditBalance, 0);
+  assert.strictEqual(ledger.length, 0);
+});
+
+test('إلغاء فاتورة ثم استرجاعها: لا خصم مزدوج (idempotent)', () => {
+  const ledger = [];
+  const cust = { _t:'customer', name:'زبون و', creditBalance: 100 };
+  const key = 'invoice-deduct:SAL-77';
+  addCredit(ledger, cust, -40, 'invoice', 'SAL-77', key); // خصم عند الإنشاء → 60
+  assert.strictEqual(cust.creditBalance, 60);
+  // إلغاء (نقل للمحذوفات) → إرجاع الرصيد
+  reverseCreditMovements(ledger, cust, { partyType:'customer', partyName:'زبون و', refType:'invoice', ref:'SAL-77' });
+  assert.strictEqual(cust.creditBalance, 100);
+  assert.strictEqual(ledger.length, 0);
+  // استرجاع → إعادة تطبيق الخصم بنفس المفتاح
+  const re = addCredit(ledger, cust, -40, 'invoice', 'SAL-77', key);
+  assert.ok(re, 'يُعاد التطبيق بعد أن حُذف القيد عند الإلغاء');
+  assert.strictEqual(cust.creditBalance, 60);
+  // محاولة تطبيق مكرّر بنفس المفتاح (إعادة حفظ) → مرفوض
+  const dup = addCredit(ledger, cust, -40, 'invoice', 'SAL-77', key);
+  assert.strictEqual(dup, null);
+  assert.strictEqual(cust.creditBalance, 60, 'لا خصم مزدوج');
+});
+
 console.log('\n✅ نجحت كل الاختبارات (' + passed + ')\n');
 
