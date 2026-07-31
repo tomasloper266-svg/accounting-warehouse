@@ -409,7 +409,8 @@ function getStats() {
   const netPurchases = totalPurchases - totalReturnPurchases;
   const profit = netSales - netPurchases;
   const inv = calcInventory();
-  const lowStock = db.items.filter(item => (inv[item.id]||0) < item.minStock);
+  // "منخفض" = وصلت الكمية إلى الحد الأدنى أو أقل منه (شامل الحد نفسه)، وليس أقل منه فقط
+  const lowStock = db.items.filter(item => (item.minStock||0) > 0 && (inv[item.id]||0) <= item.minStock);
   const invValue = db.items.reduce((s,item)=>s+(inv[item.id]||0)*item.cost,0);
   return { totalSales, totalPurchases, netSales, netPurchases, profit,
            totalReturnSales, totalReturnPurchases,
