@@ -321,6 +321,10 @@ function softDeleteInvoice(number, isSale) {
       // إرجاع الرصيد الإضافي المخصوم على هذه الفاتورة — لا يبقى الخصم بعد الإلغاء
       reverseCreditMovements({ partyType: isSale ? 'customer' : 'supplier',
         partyName: isSale ? inv.customerName : inv.supplierName, refType:'invoice', ref:number });
+      const _party = isSale ? inv.customerName : inv.supplierName;
+      logAudit(AUDIT_TYPES.INVOICE_DELETE,
+        `حذف فاتورة ${isSale ? 'بيع' : 'شراء'} ${number} بقيمة ${fmtUSD(inv.total || 0)}` +
+        `${_party ? ' — ' + _party : ''} (نقل إلى المحذوفات)`);
       saveData(db);
       showToast('🗑️ تم نقل الفاتورة ' + number + ' إلى المحذوفات', 'success');
       const modal = document.getElementById('invoice-detail-modal');
@@ -356,8 +360,14 @@ function permanentlyDeleteInvoice(number, isSale) {
     confirmLabel: '🗑️ حذف نهائي',
     danger: true,
     onConfirm: () => {
+      const _srcList = isSale ? db.salesInvoices : db.purchaseInvoices;
+      const _inv = (_srcList || []).find(i => i.number === number);
+      const _party = _inv ? (isSale ? _inv.customerName : _inv.supplierName) : '';
       if (isSale) db.salesInvoices = (db.salesInvoices || []).filter(i => i.number !== number);
       else db.purchaseInvoices = (db.purchaseInvoices || []).filter(i => i.number !== number);
+      logAudit(AUDIT_TYPES.INVOICE_DELETE,
+        `حذف نهائي لفاتورة ${isSale ? 'بيع' : 'شراء'} ${number} بقيمة ${fmtUSD(_inv ? (_inv.total || 0) : 0)}` +
+        `${_party ? ' — ' + _party : ''}`);
       saveData(db);
       showToast('✅ تم الحذف النهائي للفاتورة ' + number, 'success');
       renderTrash();
