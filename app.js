@@ -4433,22 +4433,58 @@ async function exportBackupManual() {
   }
 }
 
-// استيراد نسخة احتياطية
+// التحقق من أن الملف المستورد نسخة احتياطية صالحة البنية
+function isValidBackup(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+  const requiredArrays = [
+    'items', 'customers', 'suppliers',
+    'salesInvoices', 'purchaseInvoices',
+    'customerPayments', 'supplierPayments', 'creditLedger',
+  ];
+  for (const key of requiredArrays) {
+    if (!Array.isArray(obj[key])) return false;
+  }
+  if (!obj.company || typeof obj.company !== 'object') return false;
+  if (!obj.invoiceCounters || typeof obj.invoiceCounters !== 'object') return false;
+  return true;
+}
+
+// استعادة نسخة احتياطية — تستبدل البيانات الحالية بالكامل بعد التأكيد
 async function importBackupManual() {
   if (!window.electronAPI) { showToast('هذه الميزة تعمل فقط داخل البرنامج', 'error'); return; }
-  if (!confirm('⚠️ سيتم استبدال البيانات الحالية بالنسخة المستوردة. هل أنت متأكد؟')) return;
+
+  // 1) اختيار الملف
   const result = await window.electronAPI.importBackup();
-  if (result.success) {
-    try {
-      const imported = JSON.parse(result.data);
-      db = imported;
-      saveData(db);
-      showToast('✅ تم استيراد البيانات بنجاح', 'success');
-      navigate('dashboard');
-    } catch(e) {
-      showToast('❌ الملف غير صالح', 'error');
-    }
+  if (!result || !result.success) return; // ألغى المستخدم
+
+  // 2) قراءة والتحقق من البنية
+  let imported;
+  try {
+    imported = JSON.parse(result.data);
+  } catch(e) {
+    showToast('❌ الملف غير صالح — تعذّر قراءة محتواه', 'error');
+    return;
   }
+  if (!isValidBackup(imported)) {
+    showToast('❌ بنية الملف غير صحيحة — ليست نسخة احتياطية صالحة', 'error');
+    return;
+  }
+
+  // 3) تأكيد صريح — تحذير واضح بأن الإجراء لا رجعة فيه
+  const warning =
+    '⚠️ تحذير هام\n\n' +
+    'ستؤدي استعادة هذه النسخة إلى محو جميع البيانات الحالية نهائياً ' +
+    '(الفواتير، العملاء، الموردون، الأصناف، المخزون، المدفوعات، الأرصدة) ' +
+    'واستبدالها بمحتوى الملف المستورد.\n\n' +
+    '⛔ لا يمكن التراجع عن هذا الإجراء ما لم يكن لديك نسخة احتياطية أخرى.\n\n' +
+    'هل أنت متأكد من المتابعة؟';
+  if (!confirm(warning)) return;
+
+  // 4) الاستبدال الفعلي
+  db = imported;
+  saveData(db);
+  showToast('✅ تم استعادة البيانات بنجاح', 'success');
+  navigate('dashboard');
 }
 
 // عرض قائمة النسخ المحفوظة
