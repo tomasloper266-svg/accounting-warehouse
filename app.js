@@ -4394,7 +4394,7 @@ function printReceiptSupplier() {
 // استقبال طلب النسخة التلقائية من main process
 if (window.electronAPI) {
   window.electronAPI.onRequestBackupData(() => {
-    const jsonStr = JSON.stringify(db);
+    const jsonStr = JSON.stringify(buildBackupSnapshot());
     window.electronAPI.sendBackupData(jsonStr);
   });
 }

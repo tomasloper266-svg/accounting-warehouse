@@ -165,9 +165,9 @@ function backupTimestamp() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
 
+// مجلد النسخ التلقائية — داخل مجلد بيانات التطبيق (userData)
 function getBackupDir() {
-  const docs = app.getPath('documents');
-  const dir = path.join(docs, 'AccountingBackups');
+  const dir = path.join(app.getPath('userData'), 'auto-backups');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -184,17 +184,20 @@ function runDailyBackup(win) {
   }
 }
 
-function cleanOldBackups(keepDays = 30) {
+// يحتفظ فقط بأحدث `keep` نسخ ويحذف الأقدم — الأسماء backup-YYYY-MM-DD ترتّب زمنياً لفظياً
+function rotateBackups(keep = 7) {
   try {
     const dir = getBackupDir();
-    const files = fs.readdirSync(dir).filter(f => f.startsWith('backup-') && f.endsWith('.json'));
-    const cutoff = Date.now() - keepDays * 24 * 60 * 60 * 1000;
-    files.forEach(f => {
-      const full = path.join(dir, f);
-      const stat = fs.statSync(full);
-      if (stat.mtimeMs < cutoff) fs.unlinkSync(full);
-    });
-  } catch(e) {}
+    const files = fs.readdirSync(dir)
+      .filter(f => f.startsWith('backup-') && f.endsWith('.json'))
+      .sort(); // تصاعدي: الأقدم أولاً
+    while (files.length > keep) {
+      const oldest = files.shift();
+      fs.unlinkSync(path.join(dir, oldest));
+    }
+  } catch(e) {
+    console.error('rotateBackups error:', e);
+  }
 }
 
 ipcMain.on('backup-data', (event, jsonStr) => {
@@ -203,7 +206,7 @@ ipcMain.on('backup-data', (event, jsonStr) => {
     const today = new Date().toISOString().split('T')[0];
     const filePath = path.join(dir, `backup-${today}.json`);
     fs.writeFileSync(filePath, jsonStr, 'utf-8');
-    cleanOldBackups(30);
+    rotateBackups(7);
     console.log('✅ Backup saved:', filePath);
   } catch(e) {
     console.error('Save backup error:', e);
