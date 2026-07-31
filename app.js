@@ -2109,7 +2109,10 @@ function renderReports() {
   const totalSales     = sales.reduce((s, i) => s + (i.total || 0), 0);
   const totalPurchases = purchases.reduce((s, i) => s + (i.total || 0), 0);
   const totalReturns   = returns.reduce((s, r) => s + (r.total || 0), 0);
-  const profit  = totalSales - totalPurchases;
+  // خسائر التوالف لنفس فترة التقرير المعروضة — تُخصم من صافي الربح.
+  const damagesLoss  = (db.damages || []).filter(matchPeriod).reduce((s, d) => s + damageLoss(d), 0);
+  const grossProfit  = totalSales - totalPurchases;
+  const profit  = grossProfit - damagesLoss;   // صافي الربح = الربح − إجمالي خسائر التوالف
   const margin  = totalSales > 0 ? ((profit / totalSales) * 100).toFixed(1) : 0;
   const avgInv  = sales.length > 0 ? totalSales / sales.length : 0;
   const activeCusts = [...new Set(sales.map(i => i.customerName).filter(Boolean))].length;
@@ -2124,6 +2127,10 @@ function renderReports() {
   document.getElementById('rep-profit').textContent          = fmtUSD(profit);
   document.getElementById('rep-margin').textContent          = 'هامش الربح: ' + margin + '%';
   document.getElementById('rep-profit-old').textContent      = fmtOld(usdToOld(profit));
+  const dmgLossEl = document.getElementById('rep-damages-loss');
+  if (dmgLossEl) dmgLossEl.textContent = damagesLoss > 0
+    ? 'ربح إجمالي ' + fmtUSD(grossProfit) + ' − توالف ' + fmtUSD(damagesLoss)
+    : '';
 
   // لون بطاقة الربح
   const profitCard = document.getElementById('rep-profit-card');
