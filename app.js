@@ -2443,12 +2443,12 @@ function invoiceBalance(inv) {
     .filter(p => p.linkedInvoice === inv.number && !isAutoDepositRecord(p))
     // نستثني creditAdded: الفائض ذهب لرصيد إضافي وليس سداداً للفاتورة
     .reduce((s, p) => s + (parseFloat(p.amount) || 0) - (parseFloat(p.creditAdded) || 0) + (parseFloat(p.discountOnPayment) || 0), 0);
-  // مردود المبيع المربوط بهذه الفاتورة يُسوّي جزءاً من دينها (debtReduction فقط).
-  const returned = isSale
-    ? (db.returns || [])
-        .filter(r => r.type === 'sale' && r.refInvoice === inv.number)
-        .reduce((s, r) => s + (parseFloat(r.debtReduction) || 0), 0)
-    : 0;
+  // المردود المربوط بهذه الفاتورة يُسوّي جزءاً من دينها (debtReduction فقط):
+  //  • فاتورة بيع ← مردود مبيع (type='sale') يخفّض دين الزبون.
+  //  • فاتورة شراء ← مردود شراء (type='purchase') يخفّض ديننا للمورد.
+  const returned = (db.returns || [])
+    .filter(r => r.type === (isSale ? 'sale' : 'purchase') && r.refInvoice === inv.number)
+    .reduce((s, r) => s + (parseFloat(r.debtReduction) || 0), 0);
   const paid = deposit + later + returned;
   const remaining = Math.max(0, total - paid);
   const closed = remaining <= 0.005;
@@ -2800,10 +2800,20 @@ function getSupplierAccount(supplierName) {
   const sup = (db.suppliers || []).find(s => s.name === supplierName);
   const creditBalance = sup ? (parseFloat(sup.creditBalance) || 0) : 0;
 
+  // مردودات الشراء للمورد — بند مستقل ظاهر في كشف الحساب (دينها المُسوّى محتسب داخل invoiceBalance).
+  const returns = (db.returns || [])
+    .filter(r => (r.type || '') === 'purchase' && r.party === supplierName)
+    .slice()
+    .sort((a, b) => (new Date(a.date) - new Date(b.date)) || String(a.number).localeCompare(String(b.number)));
+  const totalReturns      = roundMoney(returns.reduce((s, r) => s + (r.total || 0), 0));
+  const totalReturnDebt   = roundMoney(returns.reduce((s, r) => s + (parseFloat(r.debtReduction) || 0), 0));
+  const totalReturnCredit = roundMoney(returns.reduce((s, r) => s + (parseFloat(r.creditAdded)   || 0), 0));
+
   return { invoices, cashInvoices, deferredInvoices, payments,
            totalInvoices, totalCash, totalDeferred,
            paidOnDeferred, standalonePayments, totalStandalone, totalLinked, totalPayments,
-           totalPaid, remaining, creditBalance };
+           totalPaid, remaining, creditBalance,
+           returns, totalReturns, totalReturnDebt, totalReturnCredit };
 }
 
 function openSupplierAccount(supplierName) {
@@ -2840,6 +2850,31 @@ function openSupplierAccount(supplierName) {
     }
   }
   renderCreditHistory('supplier', supplierName, 'sa-credit-history', 'sa-credit-tbody');
+
+  // مردودات الشراء — بند مستقل واضح في كشف الحساب
+  const returnsSection = document.getElementById('sa-returns-section');
+  const returnsTbody   = document.getElementById('sa-returns-tbody');
+  if (returnsSection && returnsTbody) {
+    if ((acc.returns || []).length) {
+      returnsSection.style.display = 'block';
+      returnsTbody.innerHTML = acc.returns.map(r => {
+        const parts = [];
+        if ((parseFloat(r.debtReduction) || 0) > CREDIT_EPSILON) parts.push('خصم من الدين ' + fmtUSD(r.debtReduction));
+        if ((parseFloat(r.creditAdded)   || 0) > CREDIT_EPSILON) parts.push('رصيد إضافي ' + fmtUSD(r.creditAdded));
+        const effect = parts.length ? parts.join(' + ') : '—';
+        return '<tr onclick="printReturnInvoice(\'' + r.number + '\')" style="cursor:pointer" title="اضغط للطباعة">' +
+          '<td><span class="inv-num">' + r.number + '</span></td>' +
+          '<td>' + (r.date || '—') + '</td>' +
+          '<td>' + (r.refInvoice ? '🔗 ' + r.refInvoice : '—') + '</td>' +
+          '<td style="color:var(--red-600);font-weight:700">−' + fmtUSD(r.total) + '</td>' +
+          '<td style="font-size:11px;color:var(--text-muted)">' + effect + '</td>' +
+        '</tr>';
+      }).join('');
+    } else {
+      returnsSection.style.display = 'none';
+      returnsTbody.innerHTML = '';
+    }
+  }
 
   // جدول الفواتير
   const invTbody = document.getElementById('sa-invoices-tbody');
