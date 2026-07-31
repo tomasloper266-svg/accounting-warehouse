@@ -5177,16 +5177,25 @@ function damageLoss(d) {
   return qty * cost;
 }
 
-function renderDamagesList(search) {
+function renderDamagesList(search, period) {
   const el = document.getElementById('damages-list');
-  if (!el) return;
-  const damages = (db.damages || []).slice().reverse();
-  const filtered = search
-    ? damages.filter(d => (d.itemName || '').toLowerCase().includes(search) || (d.reason || '').toLowerCase().includes(search) || (d.number || '').toLowerCase().includes(search))
-    : damages;
+  const all = (db.damages || []).slice().reverse();
+  let filtered = all.filter(d => damageInPeriod(d, period));
+  if (search) {
+    filtered = filtered.filter(d => (d.itemName || '').toLowerCase().includes(search) || (d.reason || '').toLowerCase().includes(search) || (d.number || '').toLowerCase().includes(search));
+  }
 
+  // إجمالي خسائر الفترة المفلترة (اليوم/الشهر/الكل)
+  const periodLoss = filtered.reduce((s, d) => s + damageLoss(d), 0);
+  const lossEl = document.getElementById('dmg-period-loss');
+  if (lossEl) lossEl.textContent = fmtUSD(periodLoss);
+  const cntEl = document.getElementById('dmg-period-count');
+  if (cntEl) cntEl.textContent = '(' + filtered.length + ' سجل)';
+
+  if (!el) return;
   if (filtered.length === 0) {
-    el.innerHTML = search ? '<div class="empty-state">🔍 لا توجد نتائج</div>' : '<div class="empty-state">لا توجد سجلات تالف بعد</div>';
+    const hasFilter = !!search || (period && period.type !== 'all' && !!period.value);
+    el.innerHTML = hasFilter ? '<div class="empty-state">🔍 لا توجد نتائج ضمن الفلترة</div>' : '<div class="empty-state">لا توجد سجلات تالف بعد</div>';
     return;
   }
 
@@ -5364,12 +5373,44 @@ function populateDamageItems() {
   });
 }
 
-// override renderDamages لتضمين populate
-const _origRenderDamages = renderDamages;
+// تجميع عرض صفحة التالف: الإحصاءات + القائمة (مع فلترة الفترة) + تعبئة المواد + تاريخ اليوم.
+// (استبدال تغليف قديم كان يستدعي نفسه فيسبّب تكراراً لا نهائياً ولا يعرض القائمة/الإحصاءات.)
 function renderDamages() {
-  _origRenderDamages();
+  const search = (document.getElementById('dmg-search')?.value || '').toLowerCase().trim();
+  const period = getDamagePeriodFilter();
+  renderDamageStats();
+  renderDamagesList(search, period);
   populateDamageItems();
   fillTodayDates('dmg-date');
+}
+
+// قراءة فلتر الفترة في شاشة سجل التوالف: الكل / يوم محدد / شهر محدد.
+function getDamagePeriodFilter() {
+  const type = document.getElementById('dmg-filter-type')?.value || 'all';
+  if (type === 'day')   return { type, value: document.getElementById('dmg-filter-day')?.value || '' };
+  if (type === 'month') return { type, value: document.getElementById('dmg-filter-month')?.value || '' };
+  return { type: 'all', value: '' };
+}
+
+// هل يقع سجل التالف ضمن الفترة المختارة؟ (اعتماداً على d.date بصيغة YYYY-MM-DD)
+function damageInPeriod(d, period) {
+  if (!period || period.type === 'all' || !period.value) return true;
+  const date = (d.date || '').slice(0, 10);
+  if (period.type === 'day')   return date === period.value;
+  if (period.type === 'month') return date.slice(0, 7) === period.value;
+  return true;
+}
+
+// تبديل حقول فلتر الفترة (يوم/شهر) ثم إعادة العرض.
+function onDamageFilterChange() {
+  const type = document.getElementById('dmg-filter-type')?.value || 'all';
+  const dayEl   = document.getElementById('dmg-filter-day');
+  const monthEl = document.getElementById('dmg-filter-month');
+  if (dayEl)   dayEl.style.display   = type === 'day'   ? '' : 'none';
+  if (monthEl) monthEl.style.display = type === 'month' ? '' : 'none';
+  if (type === 'day'   && dayEl   && !dayEl.value)   dayEl.value   = new Date().toISOString().split('T')[0];
+  if (type === 'month' && monthEl && !monthEl.value) monthEl.value = new Date().toISOString().slice(0, 7);
+  renderDamages();
 }
 
 
