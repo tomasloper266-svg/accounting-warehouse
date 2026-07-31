@@ -2122,6 +2122,35 @@ function saleLinesCOGS(lines) {
   }, 0);
 }
 
+// تجميع هامش الربح الحقيقي لكل صنف ضمن مجموعة فواتير بيع (لتقرير هامش الربح الحقيقي).
+// لكل سطر بيع: الإيراد = الكمية × سعر البيع الفعلي بالسطر، والتكلفة = الكمية × item.cost (تكلفة آخر شراء).
+function computeItemProfitMargins(sales) {
+  const map = {};
+  (sales || []).forEach(inv => {
+    (inv.lines || []).forEach(l => {
+      if (!l.itemId) return;
+      const item = db.items.find(it => it.id === l.itemId);
+      const qty = parseFloat(l.qty) || 0;
+      const revenue = qty * (parseFloat(l.price) || 0);
+      const cost = qty * (item?.cost || 0);
+      if (!map[l.itemId]) {
+        map[l.itemId] = { itemId: l.itemId, name: item ? item.name : l.itemId, unit: item ? item.unit : '', qty: 0, revenue: 0, cost: 0 };
+      }
+      map[l.itemId].qty     += qty;
+      map[l.itemId].revenue += revenue;
+      map[l.itemId].cost    += cost;
+    });
+  });
+  return Object.values(map)
+    .map(r => {
+      const profit = r.revenue - r.cost;
+      const marginPct = r.revenue > 0 ? (profit / r.revenue) * 100 : 0;
+      return { ...r, profit, marginPct };
+    })
+    .sort((a, b) => b.profit - a.profit);
+}
+
+
 function dailyReportToday() {
   const el = document.getElementById('daily-report-date');
   if (el) el.value = new Date().toISOString().split('T')[0];
