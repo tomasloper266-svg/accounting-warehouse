@@ -2041,6 +2041,51 @@ function renderReports() {
     }
   }
 
+  // ── جدول هامش الربح الحقيقي لكل صنف ──
+  const marginRows = computeItemProfitMargins(sales);
+  const marginTbody = document.getElementById('rep-margin-tbody');
+  const marginTfoot = document.getElementById('rep-margin-tfoot');
+  const marginBadge = document.getElementById('rep-margin-badge');
+  if (marginBadge) marginBadge.textContent = marginRows.length + ' صنف';
+  if (marginTbody) {
+    if (marginRows.length === 0) {
+      marginTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">لا توجد مبيعات أصناف في هذه الفترة</td></tr>';
+    } else {
+      marginTbody.innerHTML = marginRows.map(r => {
+        const marginColor = r.profit >= 0 ? '#10b981' : '#ef4444';
+        return `<tr>
+          <td style="font-weight:500">${r.name}</td>
+          <td style="text-align:center">${r.qty}${r.unit ? ' ' + r.unit : ''}</td>
+          <td style="text-align:left">${fmtUSD(r.revenue)}</td>
+          <td style="text-align:left">${fmtUSD(r.cost)}</td>
+          <td style="text-align:left"><strong style="color:${marginColor}">${fmtUSD(r.profit)}</strong></td>
+          <td style="text-align:center"><strong style="color:${marginColor}">${r.marginPct.toFixed(1)}%</strong></td>
+        </tr>`;
+      }).join('');
+    }
+  }
+  if (marginTfoot) {
+    if (marginRows.length === 0) {
+      marginTfoot.innerHTML = '';
+    } else {
+      const totalQty     = marginRows.reduce((s, r) => s + r.qty, 0);
+      const totalRevenue = marginRows.reduce((s, r) => s + r.revenue, 0);
+      const totalCost    = marginRows.reduce((s, r) => s + r.cost, 0);
+      const totalProfit  = totalRevenue - totalCost;
+      const totalMarginPct = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+      const totalColor = totalProfit >= 0 ? '#10b981' : '#ef4444';
+      marginTfoot.innerHTML = `<tr style="background:var(--surface-secondary);font-weight:700">
+        <td>الإجمالي العام</td>
+        <td style="text-align:center">${totalQty}</td>
+        <td style="text-align:left">${fmtUSD(totalRevenue)}</td>
+        <td style="text-align:left">${fmtUSD(totalCost)}</td>
+        <td style="text-align:left;color:${totalColor}">${fmtUSD(totalProfit)}</td>
+        <td style="text-align:center;color:${totalColor}">${totalMarginPct.toFixed(1)}%</td>
+      </tr>`;
+    }
+  }
+
+
   updateReportTitle(filterType, filterMonth, filterYear);
 }
 
