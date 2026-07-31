@@ -4399,10 +4399,32 @@ if (window.electronAPI) {
   });
 }
 
+// يجمع كل كيانات التطبيق في لقطة واحدة (فواتير، عملاء، موردون، أصناف، مخزون، مدفوعات، أرصدة)
+function buildBackupSnapshot() {
+  return {
+    company:          db.company          || {},
+    exchange:         db.exchange         || {},
+    invoiceCounters:  db.invoiceCounters  || {},
+    items:            db.items            || [],
+    customers:        db.customers        || [],
+    suppliers:        db.suppliers        || [],
+    books:            db.books            || [],
+    salesInvoices:    db.salesInvoices    || [],
+    purchaseInvoices: db.purchaseInvoices || [],
+    returns:          db.returns          || [],
+    warehouses:       db.warehouses       || [],
+    transfers:        db.transfers        || [],
+    damages:          db.damages          || [],
+    customerPayments: db.customerPayments || [],
+    supplierPayments: db.supplierPayments || [],
+    creditLedger:     db.creditLedger     || [],
+  };
+}
+
 // تصدير يدوي
 async function exportBackupManual() {
   if (!window.electronAPI) { showToast('هذه الميزة تعمل فقط داخل البرنامج', 'error'); return; }
-  const jsonStr = JSON.stringify(db, null, 2);
+  const jsonStr = JSON.stringify(buildBackupSnapshot(), null, 2);
   const result = await window.electronAPI.exportBackup(jsonStr);
   if (result.success) {
     showToast('✅ تم حفظ النسخة الاحتياطية', 'success');

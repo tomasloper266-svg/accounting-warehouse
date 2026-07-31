@@ -158,6 +158,13 @@ ipcMain.handle('import-database', async () => {
 // ============================================================
 // BACKUP HELPERS (محفوظة كما هي)
 // ============================================================
+// طابع زمني للنسخة الاحتياطية — يتضمن التاريخ والوقت: 2026-07-30_14-05
+function backupTimestamp() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
+}
+
 function getBackupDir() {
   const docs = app.getPath('documents');
   const dir = path.join(docs, 'AccountingBackups');
@@ -205,10 +212,9 @@ ipcMain.on('backup-data', (event, jsonStr) => {
 
 ipcMain.handle('export-backup', async (event, jsonStr) => {
   const { dialog } = require('electron');
-  const today = new Date().toISOString().split('T')[0];
   const result = await dialog.showSaveDialog({
     title: 'حفظ نسخة احتياطية',
-    defaultPath: `accounting-backup-${today}.json`,
+    defaultPath: `backup-${backupTimestamp()}.json`,
     filters: [{ name: 'JSON', extensions: ['json'] }]
   });
   if (!result.canceled && result.filePath) {
