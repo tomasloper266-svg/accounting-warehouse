@@ -2146,10 +2146,10 @@
         <div style="font-size:15px;font-weight:700;color:var(--brand-700);margin-bottom:4px;">مردود مبيع</div>
         <div style="font-size:11.5px;color:var(--text-muted);line-height:1.5;">إرجاع أصناف من فاتورة بيع — يعيد المخزون ويعدّل رصيد الزبون</div>
       </div>
-      <div onclick="showToast('مردود المشتريات قيد الإعداد — قريباً','error')" style="cursor:not-allowed;border:1.5px dashed var(--border);background:var(--bg-secondary);border-radius:var(--r-lg);padding:22px 16px;text-align:center;opacity:.7;">
+      <div onclick="openPurchaseReturn()" style="cursor:pointer;border:1.5px solid var(--brand-200);background:var(--brand-50);border-radius:var(--r-lg);padding:22px 16px;text-align:center;transition:var(--t-fast);" onmouseover="this.style.borderColor='var(--brand-500)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--brand-200)';this.style.transform='none'">
         <div style="font-size:34px;margin-bottom:10px;">🛒</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text-secondary);margin-bottom:4px;">مردود مشتريات</div>
-        <div style="font-size:11.5px;color:var(--text-muted);line-height:1.5;">إرجاع أصناف إلى مورّد — <span style="color:var(--warning-600);font-weight:700;">قريباً</span></div>
+        <div style="font-size:15px;font-weight:700;color:var(--brand-700);margin-bottom:4px;">مردود مشتريات</div>
+        <div style="font-size:11.5px;color:var(--text-muted);line-height:1.5;">إرجاع أصناف إلى مورّد — ينقّص المخزون ويعدّل رصيد المورد</div>
       </div>
     </div>
   </div>
@@ -2223,6 +2223,79 @@
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
         <button class="btn btn-ghost" onclick="closeSalesReturn()">إلغاء</button>
         <button class="btn btn-success" onclick="saveSalesReturn()">✅ حفظ المردود</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PURCHASE RETURN MODAL (اختيار فاتورة شراء ← بنود ← حفظ) ═══ -->
+<div class="modal-overlay hidden" id="purchase-return-modal" style="align-items:center;justify-content:center;">
+  <div class="detail-modal" style="width:760px;max-width:96vw;">
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:20px;">🛒</span>
+        <div>
+          <div style="font-size:16px;font-weight:700;">مردود مشتريات</div>
+          <div style="font-size:12px;color:var(--text-muted);">إرجاع أصناف إلى مورّد من فاتورة شراء</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closePurchaseReturn()">✕</button>
+    </div>
+
+    <div id="pr-picker-view">
+      <div class="global-search-wrap" style="max-width:100%;margin-bottom:12px;">
+        <svg class="global-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="pr-invoice-search" type="text" class="global-search-input" placeholder="ابحث برقم الفاتورة أو اسم المورّد..." oninput="prFilterInvoices()">
+      </div>
+      <div class="invoice-table-wrap" style="max-height:340px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>رقم الفاتورة</th><th>المورد</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة</th></tr></thead>
+          <tbody id="pr-invoice-list"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="pr-detail-view" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg-secondary);border-radius:var(--r-lg);padding:10px 14px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;" id="pr-inv-label">—</div>
+          <div style="font-size:11.5px;color:var(--text-muted);" id="pr-inv-meta">—</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="prBackToPicker()">← تغيير الفاتورة</button>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="font-size:13px;font-weight:600;">📦 حدّد كميات الإرجاع</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:var(--text-muted);">مردود رقم</span>
+          <span class="badge badge-blue" id="pr-return-number">PRET-001</span>
+          <input type="date" id="pr-return-date" class="input input-sm" style="width:150px;">
+          <button class="btn btn-secondary btn-sm" onclick="prSetFull()">إرجاع الكل</button>
+          <button class="btn btn-ghost btn-sm" onclick="prClearQty()">تصفير</button>
+        </div>
+      </div>
+
+      <div class="invoice-table-wrap" style="max-height:260px;overflow-y:auto;">
+        <table>
+          <thead><tr><th>#</th><th>الصنف</th><th>المشترى</th><th>مُرجع سابقاً</th><th>المتاح</th><th>كمية الإرجاع</th><th>السعر</th><th>القيمة</th></tr></thead>
+          <tbody id="pr-lines"></tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 16px;background:var(--brand-50);border:1px solid var(--brand-100);border-radius:var(--r-lg);">
+        <div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:2px;">الأثر على حساب المورد</div>
+          <div style="font-size:12.5px;" id="pr-effect"><span style="color:var(--text-muted)">حدّد كميات الإرجاع لمعاينة الأثر</span></div>
+        </div>
+        <div style="text-align:left;">
+          <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:2px;">إجمالي المردود</div>
+          <div style="font-size:20px;font-weight:800;color:var(--brand-700);" id="pr-total">0 $</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+        <button class="btn btn-ghost" onclick="closePurchaseReturn()">إلغاء</button>
+        <button class="btn btn-success" onclick="savePurchaseReturn()">✅ حفظ المردود</button>
       </div>
     </div>
   </div>

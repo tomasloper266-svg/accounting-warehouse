@@ -3735,6 +3735,201 @@ function saveSalesReturn() {
 }
 
 // ============================================================
+// مردود الشراء (Purchase Return) — مرتبط بفاتورة شراء فعلية
+// زر “مردود” بالأعلى ← مودال كرتين ← كرت “مردود مشتريات” يفتح هذا التدفق.
+// الترقيم PRET-001 مستقل، يُنقّص المخزون (البضاعة ترجع للمورد)،
+// ويوزّع القيمة بين خصم ديننا للمورد والرصيد الإضافي المستحق لنا. مرآة تامة لتدفق مردود المبيع.
+// ============================================================
+let prState = { invoiceNumber: '', lines: [] };
+
+function openPurchaseReturn() {
+  closeReturnsMenu();
+  prState = { invoiceNumber: '', lines: [] };
+  const m = document.getElementById('purchase-return-modal');
+  if (m) { m.classList.remove('hidden'); m.style.display = 'flex'; }
+  document.getElementById('pr-picker-view').style.display = 'block';
+  document.getElementById('pr-detail-view').style.display = 'none';
+  const s = document.getElementById('pr-invoice-search');
+  if (s) s.value = '';
+  prRenderInvoicePicker('');
+}
+
+function closePurchaseReturn() {
+  const m = document.getElementById('purchase-return-modal');
+  if (m) { m.classList.add('hidden'); m.style.display = 'none'; }
+}
+
+function prFilterInvoices() {
+  prRenderInvoicePicker(document.getElementById('pr-invoice-search')?.value || '');
+}
+
+function prRenderInvoicePicker(filter) {
+  const tbody = document.getElementById('pr-invoice-list');
+  if (!tbody) return;
+  const q = (filter || '').toLowerCase().trim();
+  const list = activePurchaseInvoices()
+    .filter(inv => !q || (inv.number || '').toLowerCase().includes(q) || (inv.supplierName || '').toLowerCase().includes(q))
+    .slice().reverse();
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:var(--s5)">لا توجد فواتير شراء مطابقة</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(inv => {
+    const bal = invoiceBalance(inv);
+    const statusBadge = bal.closed
+      ? '<span class="badge badge-green">مسدّدة</span>'
+      : '<span class="badge badge-red">آجلة — متبقٍّ ' + fmtUSD(bal.remaining) + '</span>';
+    return '<tr onclick="prSelectInvoice(\'' + inv.number + '\')" style="cursor:pointer">' +
+      '<td><span class="inv-num">' + inv.number + '</span></td>' +
+      '<td>' + (inv.supplierName || '—') + '</td>' +
+      '<td>' + (inv.date || '—') + '</td>' +
+      '<td>' + fmtUSD(inv.total) + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function prSelectInvoice(number) {
+  const inv = activePurchaseInvoices().find(i => i.number === number);
+  if (!inv) { showToast('الفاتورة غير موجودة', 'error'); return; }
+  prState.invoiceNumber = number;
+  prState.lines = (inv.lines || []).map((l, idx) => {
+    const item = db.items.find(it => it.id === l.itemId);
+    const unitLabel = (l.unitType === 'unit2' && item && item.unit2) ? item.unit2 : (item ? item.unit : '');
+    const prior = priorReturnedForPurchaseLine(number, idx);
+    const boughtQty = parseFloat(l.qty) || 0;
+    return {
+      srcLine: idx, itemId: l.itemId, name: item ? item.name : l.itemId,
+      unitLabel, unitType: l.unitType || 'unit', price: parseFloat(l.price) || 0,
+      boughtQty, priorReturned: prior,
+      returnable: computeReturnableQty(boughtQty, prior), returnQty: 0,
+    };
+  });
+  document.getElementById('pr-picker-view').style.display = 'none';
+  document.getElementById('pr-detail-view').style.display = 'block';
+  const bal = invoiceBalance(inv);
+  document.getElementById('pr-inv-label').textContent = inv.number + ' — ' + (inv.supplierName || '—');
+  document.getElementById('pr-inv-meta').textContent = (inv.date || '') + ' · إجمالي ' + fmtUSD(inv.total) +
+    ' · ' + (inv.paymentType === 'deferred' ? 'آجلة (متبقٍّ ' + fmtUSD(bal.remaining) + ')' : 'نقدية (مسدّدة)');
+  document.getElementById('pr-return-number').textContent = nextPurchaseReturnNumber();
+  const dEl = document.getElementById('pr-return-date');
+  if (dEl) dEl.value = todayStr();
+  prRenderLines();
+}
+
+function prBackToPicker() {
+  document.getElementById('pr-picker-view').style.display = 'block';
+  document.getElementById('pr-detail-view').style.display = 'none';
+  prRenderInvoicePicker(document.getElementById('pr-invoice-search')?.value || '');
+}
+
+function prSetFull() { prState.lines.forEach(l => { l.returnQty = l.returnable; }); prRenderLines(); }
+function prClearQty() { prState.lines.forEach(l => { l.returnQty = 0; }); prRenderLines(); }
+
+function prOnReturnQtyChange(i, val) {
+  const line = prState.lines[i];
+  if (!line) return;
+  let q = parseFloat(val) || 0;
+  if (q < 0) q = 0;
+  if (q > line.returnable) { q = line.returnable; showToast('الحد الأقصى للإرجاع ' + line.returnable + ' ' + line.unitLabel, 'error'); }
+  line.returnQty = roundMoney(q);
+  prRenderLines();
+}
+
+function prRenderLines() {
+  const tbody = document.getElementById('pr-lines');
+  if (!tbody) return;
+  tbody.innerHTML = prState.lines.map((l, i) => {
+    const disabled = l.returnable <= 0 ? 'disabled' : '';
+    const lineTotal = roundMoney(l.returnQty * l.price);
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + l.name + '</td>' +
+      '<td style="text-align:center">' + l.boughtQty + ' ' + l.unitLabel + '</td>' +
+      '<td style="text-align:center">' + (l.priorReturned > 0 ? l.priorReturned : '—') + '</td>' +
+      '<td style="text-align:center;font-weight:700;color:var(--brand-600)">' + l.returnable + '</td>' +
+      '<td><input type="number" class="input input-sm" style="width:90px" min="0" max="' + l.returnable + '" step="0.01" value="' + l.returnQty + '" ' + disabled + ' onchange="prOnReturnQtyChange(' + i + ',this.value)"></td>' +
+      '<td style="text-align:center">' + fmtUSD(l.price) + '</td>' +
+      '<td style="text-align:center;font-weight:700">' + (lineTotal > 0 ? fmtUSD(lineTotal) : '—') + '</td>' +
+    '</tr>';
+  }).join('');
+  prRenderSummary();
+}
+
+function prComputeTotal() {
+  return roundMoney(prState.lines.reduce((s, l) => s + (l.returnQty * l.price), 0));
+}
+
+function prRenderSummary() {
+  const inv = activePurchaseInvoices().find(i => i.number === prState.invoiceNumber);
+  const total = prComputeTotal();
+  const remaining = inv ? invoiceBalance(inv).remaining : 0;
+  const eff = computePurchaseReturnEffect(remaining, total);
+  const totalEl = document.getElementById('pr-total');
+  if (totalEl) totalEl.textContent = fmtUSD(total);
+  const effEl = document.getElementById('pr-effect');
+  if (!effEl) return;
+  if (total <= 0) { effEl.innerHTML = '<span style="color:var(--text-muted)">حدّد كميات الإرجاع لمعاينة الأثر</span>'; return; }
+  const parts = [];
+  if (eff.debtReduction > CREDIT_EPSILON) parts.push('<span style="color:var(--danger-600);font-weight:700">خصم من ديننا للمورد: ' + fmtUSD(eff.debtReduction) + '</span>');
+  if (eff.creditAdded > CREDIT_EPSILON) parts.push('<span style="color:var(--success-600);font-weight:700">رصيد إضافي مستحق لنا: ' + fmtUSD(eff.creditAdded) + '</span>');
+  effEl.innerHTML = parts.join(' &nbsp;·&nbsp; ') || '—';
+}
+
+function savePurchaseReturn() {
+  const inv = activePurchaseInvoices().find(i => i.number === prState.invoiceNumber);
+  if (!inv) { showToast('اختر فاتورة شراء أولاً', 'error'); return; }
+  const chosen = prState.lines.filter(l => (l.returnQty || 0) > 0);
+  if (!chosen.length) { showToast('حدّد كمية إرجاع لصنف واحد على الأقل', 'error'); return; }
+
+  // إعادة التحقق — منع تجاوز المتاح (يراعي مردودات سابقة)
+  for (const l of chosen) {
+    const prior = priorReturnedForPurchaseLine(prState.invoiceNumber, l.srcLine);
+    const v = validateReturnQty(l.returnQty, l.boughtQty, prior);
+    if (!v.ok) { showToast('كمية إرجاع "' + l.name + '" غير صالحة (المتاح ' + v.returnable + ')', 'error'); return; }
+  }
+
+  const total = roundMoney(chosen.reduce((s, l) => s + (l.returnQty * l.price), 0));
+  const remaining = invoiceBalance(inv).remaining;
+  const eff = computePurchaseReturnEffect(remaining, total);
+  const number = nextPurchaseReturnNumber();
+  const date = document.getElementById('pr-return-date')?.value || todayStr();
+  const supplierName = inv.supplierName || '';
+
+  const ret = {
+    number, type: 'purchase', date, party: supplierName,
+    refInvoice: inv.number, total,
+    debtReduction: eff.debtReduction, creditAdded: eff.creditAdded,
+    note: 'مردود مشتريات للفاتورة ' + inv.number,
+    lines: chosen.map(l => ({
+      itemId: l.itemId, qty: roundMoney(l.returnQty), price: l.price,
+      total: roundMoney(l.returnQty * l.price), unitType: l.unitType, srcLine: l.srcLine,
+    })),
+  };
+  if (!db.returns) db.returns = [];
+  db.returns.push(ret);
+
+  // أثر الحساب — موازٍ تماماً لمردود المبيع لكن باتجاه المورد:
+  //  • تخفيض ديننا المخزّن للمورد (balance) بمقدار debtReduction.
+  //  • الفائض (creditAdded) رصيد إضافي مستحق لنا عبر السجل الموحّد (مفتاح يمنع الازدواج).
+  const sup = (db.suppliers || []).find(s => s.name === supplierName);
+  if (sup && eff.debtReduction > CREDIT_EPSILON) {
+    sup.balance = Math.max(0, roundMoney((sup.balance || 0) - eff.debtReduction));
+  }
+  if (eff.creditAdded > CREDIT_EPSILON) {
+    applyCreditMovement({ partyType: 'supplier', partyName: supplierName, delta: eff.creditAdded,
+      refType: 'return', ref: number, date, key: 'return-add:' + number });
+  }
+
+  if (inv.paymentType === 'deferred') inv.paymentStatus = invoiceBalance(inv).closed ? 'paid' : 'partial';
+
+  saveData(db);
+  showToast('✅ تم حفظ مردود المشتريات ' + number + ' — المخزون والحساب تحدّثا', 'success');
+  closePurchaseReturn();
+  if (typeof renderReturns === 'function') { try { renderReturns(); } catch (e) {} }
+}
+
+// ============================================================
 // عرض تفاصيل الفاتورة + تعديلها
 // ============================================================
 function openInvoiceDetail(number) {
