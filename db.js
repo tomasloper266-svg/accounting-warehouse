@@ -239,6 +239,17 @@ function createTables() {
       date      TEXT DEFAULT '',
       key       TEXT DEFAULT ''
     );
+
+    -- سجل التدقيق — يسجّل العمليات الحساسة (حذف/تعديل) تلقائياً
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id      TEXT PRIMARY KEY,
+      ts      TEXT DEFAULT '',
+      date    TEXT DEFAULT '',
+      time    TEXT DEFAULT '',
+      type    TEXT DEFAULT '',
+      user    TEXT DEFAULT '',
+      details TEXT DEFAULT ''
+    );
   `);
 }
 
@@ -396,10 +407,11 @@ function loadAll() {
   const customerPayments = db.prepare('SELECT * FROM customer_payments ORDER BY date DESC').all();
   const supplierPayments = db.prepare('SELECT * FROM supplier_payments ORDER BY date DESC').all();
   const creditLedger = db.prepare('SELECT * FROM credit_ledger ORDER BY date ASC, id ASC').all();
+  const auditLog = db.prepare('SELECT * FROM audit_log ORDER BY ts DESC, id DESC').all();
 
   return { company, exchange, invoiceCounters, items, customers, suppliers, books,
            salesInvoices, purchaseInvoices, returns, customerPayments, supplierPayments,
-           creditLedger };
+           creditLedger, auditLog };
 }
 
 // ============================================================
@@ -603,6 +615,17 @@ function saveAll(data) {
       id: m.id, partyType: m.partyType || '', partyName: m.partyName || '',
       amount: m.amount || 0, type: m.type || '', refType: m.refType || '',
       ref: m.ref || '', date: m.date || '', key: m.key || ''
+    }));
+
+    // audit log — سجل التدقيق (عمليات الحذف/التعديل الحساسة)
+    db.prepare('DELETE FROM audit_log').run();
+    const insAudit = db.prepare(`
+      INSERT INTO audit_log (id, ts, date, time, type, user, details)
+      VALUES (@id, @ts, @date, @time, @type, @user, @details)
+    `);
+    (data.auditLog || []).forEach(a => insAudit.run({
+      id: a.id, ts: a.ts || '', date: a.date || '', time: a.time || '',
+      type: a.type || '', user: a.user || '', details: a.details || ''
     }));
   });
 

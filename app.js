@@ -217,6 +217,42 @@ async function initDB() {
   if (!db.customerPayments) db.customerPayments = [];
   if (!db.supplierPayments) db.supplierPayments = [];
   if (!db.creditLedger)     db.creditLedger = []; // سجل حركة الرصيد الإضافي
+  if (!db.auditLog)         db.auditLog = [];     // سجل التدقيق — عمليات الحذف/التعديل الحساسة
+}
+
+// ============================================================
+// سجل التدقيق (Audit Log) — تسجيل تلقائي للعمليات الحساسة
+// ============================================================
+// أنواع العمليات الحساسة المُراقَبة
+const AUDIT_TYPES = {
+  INVOICE_DELETE: 'حذف فاتورة',
+  PRICE_EDIT:     'تعديل سعر بيع',
+  PAYMENT_DELETE: 'حذف دفعة',
+  BALANCE_EDIT:   'تعديل رصيد يدوي',
+};
+
+// اسم المستخدم الفاعل — لا يوجد نظام صلاحيات متعدد المستخدمين في البرنامج
+// (الدخول ببوابة كلمة مرور واحدة فقط)، لذا نستخدم اسماً موحّداً.
+function auditActor() {
+  return 'مستخدم البرنامج';
+}
+
+// يسجّل قيداً واحداً في سجل التدقيق ثم يحفظ. يُستدعى من كل عملية حساسة.
+// type: أحد قيم AUDIT_TYPES — details: نص عربي يصف الكيان الحقيقي المتأثر.
+function logAudit(type, details) {
+  if (!db.auditLog) db.auditLog = [];
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  db.auditLog.push({
+    id:      'AUD-' + now.getTime() + '-' + Math.random().toString(36).slice(2, 8),
+    ts:      now.toISOString(),
+    date:    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    time:    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
+    type:    type || '',
+    user:    auditActor(),
+    details: details || '',
+  });
+  saveData(db);
 }
 
 function loadData() {
@@ -4553,6 +4589,7 @@ function buildBackupSnapshot() {
     customerPayments: db.customerPayments || [],
     supplierPayments: db.supplierPayments || [],
     creditLedger:     db.creditLedger     || [],
+    auditLog:         db.auditLog         || [],
   };
 }
 
