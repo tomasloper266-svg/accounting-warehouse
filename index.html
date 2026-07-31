@@ -1081,6 +1081,32 @@
           </div>
         </div>
 
+        <!-- جدول هامش الربح الحقيقي لكل صنف -->
+        <div style="background:var(--surface-primary);border-radius:16px;border:1px solid var(--border-subtle);overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-top:16px">
+          <div style="padding:14px 18px;border-bottom:1px solid var(--border-subtle);background:var(--surface-secondary);display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-size:14px">📈</div>
+              <span style="font-size:13px;font-weight:700;color:var(--text-primary)">هامش الربح الحقيقي لكل صنف</span>
+            </div>
+            <span id="rep-margin-badge" style="font-size:11px;background:var(--surface-primary);border:1px solid var(--border-subtle);padding:2px 10px;border-radius:999px;color:var(--text-muted);font-weight:600">0 صنف</span>
+          </div>
+          <div class="invoice-table-wrap" style="margin:0;border-radius:0;box-shadow:none">
+            <table>
+              <thead><tr>
+                <th>اسم الصنف</th>
+                <th style="text-align:center">الكمية المباعة</th>
+                <th style="text-align:left">إجمالي المبيعات</th>
+                <th style="text-align:left">إجمالي التكلفة</th>
+                <th style="text-align:left">صافي الربح</th>
+                <th style="text-align:center">نسبة الربح %</th>
+              </tr></thead>
+              <tbody id="rep-margin-tbody"></tbody>
+              <tfoot id="rep-margin-tfoot"></tfoot>
+            </table>
+          </div>
+        </div>
+
+
       </div>
     </div>
 
