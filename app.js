@@ -305,6 +305,30 @@ function showConfirmModal({ title, message, confirmLabel = 'تأكيد', danger 
   document.getElementById('confirm-modal-ok').onclick = () => { close(); onConfirm(); };
 }
 
+// نافذة إدخال عامة — prompt() غير موثوق داخل Electron فنستخدم modal خاصاً
+function showPromptModal({ title, message, defaultValue = '', confirmLabel = 'حفظ', onConfirm }) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:inherit;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <h3 style="margin:0 0 8px;font-size:18px;color:#0f172a;">${title}</h3>
+      <p style="margin:0 0 16px;font-size:14px;color:#64748b;white-space:pre-line;">${message}</p>
+      <input id="prompt-modal-input" type="number" step="0.01" value="${defaultValue}" style="width:100%;padding:10px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:20px;box-sizing:border-box;text-align:center;">
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button id="prompt-modal-cancel" style="padding:10px 24px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;font-size:14px;cursor:pointer;font-family:inherit;">إلغاء</button>
+        <button id="prompt-modal-ok" style="padding:10px 24px;border-radius:8px;border:none;background:#4f46e5;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">${confirmLabel}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const input = document.getElementById('prompt-modal-input');
+  input.focus(); input.select();
+  const close = () => { if (document.body.contains(overlay)) document.body.removeChild(overlay); };
+  const submit = () => { const v = input.value; close(); onConfirm(v); };
+  document.getElementById('prompt-modal-cancel').onclick = close;
+  document.getElementById('prompt-modal-ok').onclick = submit;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') close(); });
+}
+
 // نقل فاتورة (بيع/شراء) إلى سلة المحذوفات — حذف ناعم فقط
 // (لا يوجد حذف نهائي مباشر من القوائم العادية أبداً)
 function softDeleteInvoice(number, isSale) {
@@ -1728,12 +1752,58 @@ function addSupplier() {
 
 function updateSupplier(i, field, val) {
   if (!db.suppliers || !db.suppliers[i]) return;
+  const sup = db.suppliers[i];
+  if (field === 'balance' || field === 'creditBalance') {
+    const _old = parseFloat(sup[field]) || 0;
+    const _new = parseFloat(val) || 0;
+    val = _new; // خزّن الرصيد رقماً دائماً
+    if (Math.abs(_new - _old) > 0.0001) {
+      logAudit(AUDIT_TYPES.BALANCE_EDIT,
+        `تعديل ${field === 'creditBalance' ? 'الرصيد الإضافي للمورد' : 'رصيد المورد'} ${sup.name || sup.id} من ${fmtUSD(_old)} إلى ${fmtUSD(_new)}`);
+    }
+  }
   db.suppliers[i][field] = val;
   saveData(db);
 }
 
 
-function updateCustomer(i,field,val) { db.customers[i][field]=val; saveData(db); }
+function updateCustomer(i,field,val) {
+  if (!db.customers || !db.customers[i]) return;
+  const cust = db.customers[i];
+  if (field === 'balance' || field === 'creditBalance') {
+    const _old = parseFloat(cust[field]) || 0;
+    const _new = parseFloat(val) || 0;
+    val = _new; // خزّن الرصيد رقماً دائماً
+    if (Math.abs(_new - _old) > 0.0001) {
+      logAudit(AUDIT_TYPES.BALANCE_EDIT,
+        `تعديل ${field === 'creditBalance' ? 'الرصيد الإضافي للزبون' : 'رصيد الزبون'} ${cust.name || cust.id} من ${fmtUSD(_old)} إلى ${fmtUSD(_new)}`);
+    }
+  }
+  db.customers[i][field]=val;
+  saveData(db);
+}
+
+// تعديل رصيد طرف (زبون/مورد) يدوياً — يمرّ عبر updateCustomer/updateSupplier
+// ليُسجّل في سجل التدقيق تلقائياً.
+function manualEditBalance(kind, name) {
+  const list = kind === 'supplier' ? (db.suppliers || []) : (db.customers || []);
+  const idx = list.findIndex(p => p.name === name);
+  if (idx < 0) { showToast('لم يتم العثور على الحساب', 'error'); return; }
+  const current = parseFloat(list[idx].balance) || 0;
+  showPromptModal({
+    title: '✏️ تعديل الرصيد يدوياً',
+    message: `الرصيد المخزّن الحالي لـ "${name}": ${fmtUSD(current)}\nأدخل الرصيد الجديد (بالدولار):`,
+    defaultValue: current,
+    onConfirm: (raw) => {
+      const val = parseFloat(raw);
+      if (isNaN(val)) { showToast('قيمة غير صالحة', 'error'); return; }
+      if (kind === 'supplier') updateSupplier(idx, 'balance', val);
+      else updateCustomer(idx, 'balance', val);
+      showToast('✅ تم تعديل الرصيد', 'success');
+      renderCustomerBalances();
+    }
+  });
+}
 
 function addCustomer() {
   const newId = 'CUS-'+String(db.customers.length+1).padStart(3,'0');
@@ -6276,12 +6346,12 @@ function renderCustomerBalances() {
   const tbody = document.getElementById('customer-balances-tbody');
   if (!tbody) return;
 
-  const custRows = db.customers.map(c => ({ name: c.name, kind: 'زبون', ...getCustomerAccount(c.name) }));
-  const suppRows = (db.suppliers||[]).map(s => ({ name: s.name, kind: 'مورد', ...getSupplierAccount(s.name) }));
+  const custRows = db.customers.map(c => ({ name: c.name, kind: 'زبون', kindKey: 'customer', storedBalance: parseFloat(c.balance) || 0, ...getCustomerAccount(c.name) }));
+  const suppRows = (db.suppliers||[]).map(s => ({ name: s.name, kind: 'مورد', kindKey: 'supplier', storedBalance: parseFloat(s.balance) || 0, ...getSupplierAccount(s.name) }));
   const rows = [...custRows, ...suppRows];
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">لا يوجد زبائن أو موردون بعد</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">لا يوجد زبائن أو موردون بعد</td></tr>`;
     return;
   }
 
@@ -6292,6 +6362,10 @@ function renderCustomerBalances() {
       <td>${fmtUSD(r.totalInvoices||0)}</td>
       <td style="color:var(--success-600)">${fmtUSD(r.totalPaid||0)}</td>
       <td style="text-align:left;font-weight:800;color:${(r.remaining||0)>0?'var(--danger-600)':'var(--success-700)'}">${fmtUSD(r.remaining||0)}</td>
+      <td style="text-align:center;white-space:nowrap">
+        <span style="font-weight:700;margin-left:8px">${fmtUSD(r.storedBalance||0)}</span>
+        <button class="btn btn-ghost btn-sm" title="تعديل الرصيد يدوياً" onclick="manualEditBalance('${r.kindKey}', '${(r.name||'').replace(/'/g, "\\'")}')">✏️</button>
+      </td>
     </tr>`).join('');
 }
 
