@@ -5144,10 +5144,7 @@ function updateWarehouseSelects() {
 
 function renderDamageStats() {
   const damages = db.damages || [];
-  const totalLoss = damages.reduce((s, d) => {
-    const item = db.items.find(i => i.id === d.itemId);
-    return s + (parseFloat(d.qty) || 0) * (item?.cost || d.cost || 0);
-  }, 0);
+  const totalLoss = damages.reduce((s, d) => s + damageLoss(d), 0);
   const el = document.getElementById('dmg-total-loss');
   if (el) el.textContent = fmtUSD(totalLoss);
   const el2 = document.getElementById('dmg-count');
@@ -5167,6 +5164,19 @@ function nextDamageNumber() {
   return 'DMG-' + String(max + 1).padStart(3, '0');
 }
 
+// قيمة خسارة سجل تالف = الكمية × سعر تكلفة الشراء (وليس سعر البيع).
+// تُفضّل التكلفة المخزّنة وقت التسجيل (لقطة ثابتة) حتى لا تتغير الخسارة التاريخية
+// إذا عُدّل سعر تكلفة الصنف لاحقاً؛ وإن غابت تُستخدم تكلفة الصنف الحالية.
+function damageLoss(d) {
+  const qty = parseFloat(d.qty) || 0;
+  let cost = (d.cost != null && d.cost !== '') ? parseFloat(d.cost) : NaN;
+  if (!(cost >= 0)) {
+    const item = db.items.find(i => i.id === d.itemId);
+    cost = item?.cost || 0;
+  }
+  return qty * cost;
+}
+
 function renderDamagesList(search) {
   const el = document.getElementById('damages-list');
   if (!el) return;
@@ -5182,7 +5192,7 @@ function renderDamagesList(search) {
 
   el.innerHTML = filtered.map(d => {
     const item = db.items.find(i => i.id === d.itemId);
-    const loss = (parseFloat(d.qty) || 0) * (item?.cost || d.cost || 0);
+    const loss = damageLoss(d);
     const whName = d.warehouseId ? ((db.warehouses || []).find(w => w.id === d.warehouseId)?.name || d.warehouseId) : '—';
     return `<div class="invoice-row">
       <span class="item-id">${d.number || '—'}</span>
@@ -5222,11 +5232,14 @@ function saveDamage() {
   const number = nextDamageNumber();
   const cost = item?.cost || 0;
 
+  // تخزين السجل مع لقطة سعر التكلفة ووقت الإنشاء.
+  // خصم الكمية من المخزون يتم تلقائياً عبر calcInventory/computeInventory (التالف −).
   db.damages.push({
     number, itemId, itemName: item?.name || itemId,
     qty, reason, date, note,
     cost,
-    warehouseId: whId || ''
+    warehouseId: whId || '',
+    createdAt: new Date().toISOString()
   });
 
   saveData(db);
@@ -5254,14 +5267,11 @@ function deleteDamage(number) {
 
 function printDamagesReport() {
   const damages = db.damages || [];
-  const totalLoss = damages.reduce((s, d) => {
-    const item = db.items.find(i => i.id === d.itemId);
-    return s + (parseFloat(d.qty) || 0) * (item?.cost || d.cost || 0);
-  }, 0);
+  const totalLoss = damages.reduce((s, d) => s + damageLoss(d), 0);
 
   const rows = damages.map((d, i) => {
     const item = db.items.find(it => it.id === d.itemId);
-    const loss = (parseFloat(d.qty) || 0) * (item?.cost || d.cost || 0);
+    const loss = damageLoss(d);
     return `<tr>
       <td>${i+1}</td>
       <td>${d.number}</td>
