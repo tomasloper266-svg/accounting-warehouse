@@ -2325,6 +2325,10 @@ function computeSalesReturnEffect(invoiceRemaining, returnValue) {
   return { debtReduction, creditAdded };
 }
 
+// أثر مردود الشراء على حساب المورد — نفس منطق مردود المبيع بالاتجاه المعاكس
+// (فاتورة شراء مسدّدة ← رصيد إضافي مستحق لنا من المورد، آجلة ← خصم من ديننا له).
+const computePurchaseReturnEffect = computeSalesReturnEffect;
+
 // ============================================================
 // سجل حركة الرصيد الإضافي — المسار الموحّد (مطابق لـ db.js)
 // كل المسارات الثلاثة (فاتورة / دفعة كشف / إيصال) تعدّل الرصيد الإضافي
@@ -3486,6 +3490,23 @@ function nextSalesReturnNumber() {
 function priorReturnedForSaleLine(invNumber, srcLine) {
   return roundMoney((db.returns || [])
     .filter(r => r.type === 'sale' && r.refInvoice === invNumber)
+    .reduce((s, r) => s + (r.lines || [])
+      .filter(l => l.srcLine === srcLine)
+      .reduce((ss, l) => ss + (parseFloat(l.qty) || 0), 0), 0));
+}
+
+// رقم مردود شراء تسلسلي PRET-001 — مستقل عن ترقيم الفواتير وعن مردود المبيع (RET-).
+function nextPurchaseReturnNumber() {
+  const nums = (db.returns || [])
+    .map(r => { const m = /^PRET-(\d+)$/.exec(r.number || ''); return m ? parseInt(m[1], 10) : 0; });
+  const max = nums.length ? Math.max(0, ...nums) : 0;
+  return 'PRET-' + String(max + 1).padStart(3, '0');
+}
+
+// مجموع ما سبق إرجاعه لبند مصدر (srcLine) من مردودات شراء فاتورة معيّنة.
+function priorReturnedForPurchaseLine(invNumber, srcLine) {
+  return roundMoney((db.returns || [])
+    .filter(r => r.type === 'purchase' && r.refInvoice === invNumber)
     .reduce((s, r) => s + (r.lines || [])
       .filter(l => l.srcLine === srcLine)
       .reduce((ss, l) => ss + (parseFloat(l.qty) || 0), 0), 0));

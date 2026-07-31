@@ -843,6 +843,13 @@ function computeSalesReturnEffect(invoiceRemaining, returnValue) {
   return { debtReduction, creditAdded };
 }
 
+// أثر مردود الشراء على حساب المورد — نفس منطق مردود المبيع حرفياً لكن بالاتجاه المعاكس:
+//  • فاتورة شراء مسدّدة بالكامل (المتبقي 0) ← كل القيمة رصيد إضافي مستحق لنا من المورد (creditAdded).
+//  • فاتورة شراء آجلة فيها دين علينا ← يُخصم من الدين (debtReduction) بمقدار الأقل من القيمة والدين.
+//  • مدفوعة جزئياً ← يُسدّد الدين المتبقي أولاً والفائض يذهب للرصيد الإضافي.
+// منطق موحّد مع مردود المبيع (debtReduction ثم creditAdded) — لا ازدواج، مجرد اسم يوضّح الاتجاه.
+const computePurchaseReturnEffect = computeSalesReturnEffect;
+
 // حساب المخزون الحالي لكل صنف من الحركات: شراء (+)، بيع (−)، مردود بيع (+)، مردود شراء (−)، تالف (−).
 // دالة نقية — تعكس calcInventory في app.js حرفياً. مردود البيع يُعيد الكمية تلقائياً للمخزون.
 function computeInventory(data) {
@@ -884,4 +891,6 @@ module.exports = {
   recordCreditMovement, reverseCreditMovements, creditMovementKey,
   // مردود المبيع — دوال نقية مشتركة مع الواجهة
   computeReturnableQty, validateReturnQty, computeSalesReturnEffect, computeInventory,
+  // مردود الشراء — نفس الدوال النقية (الاتجاه المعاكس)
+  computePurchaseReturnEffect,
 };
