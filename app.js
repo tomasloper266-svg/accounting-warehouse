@@ -933,6 +933,65 @@ function renderSaleTotal() {
 function saveSaleInvoice() {
   const lines = saleLines.filter(l=>l.itemId&&l.qty>0);
   if(lines.length===0){showToast('أضف مادة واحدة على الأقل','error');return;}
+
+  // تنبيه إعلامي غير مانع: أصناف في الفاتورة كميتها المتاحة نفدت أو وصلت لحدها الأدنى
+  const lowItems = lowStockItemsInLines(lines);
+  if (lowItems.length > 0) {
+    showLowStockSaleWarning(lowItems, () => finalizeSaleInvoice(lines));
+  } else {
+    finalizeSaleInvoice(lines);
+  }
+}
+
+// أصناف سطور الفاتورة التي كميتها الحالية (قبل هذا البيع) نفدت أو <= الحد الأدنى
+function lowStockItemsInLines(lines) {
+  const inv = calcInventory();
+  const seen = new Set();
+  const result = [];
+  lines.forEach(l => {
+    const item = db.items.find(it => it.id === l.itemId);
+    if (!item || seen.has(item.id)) return;
+    const stock = inv[item.id] || 0;
+    const isOut = stock <= 0;
+    const isLow = (item.minStock||0) > 0 && stock <= item.minStock;
+    if (isOut || isLow) {
+      seen.add(item.id);
+      result.push({ id: item.id, name: item.name, unit: item.unit||'', stock, minStock: item.minStock||0, isOut });
+    }
+  });
+  return result;
+}
+
+// تحذير غير مانع قبل إتمام البيع لأصناف نفدت أو دون الحد الأدنى — نفس نمط تحذيرات الاستعادة
+function showLowStockSaleWarning(items, onContinue) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;font-family:inherit;';
+  const rows = items.map(it => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:#fef3c7;border-radius:8px;margin-bottom:6px;">
+      <span style="font-weight:700;color:#0f172a;">${it.name}</span>
+      <span style="font-weight:700;color:${it.isOut ? '#dc2626' : '#d97706'};font-size:12.5px;white-space:nowrap;">
+        ${it.isOut ? '⚠️ نفد من المخزون' : `⚠️ متبقي ${it.stock} ${it.unit} (الحد الأدنى ${it.minStock})`}
+      </span>
+    </div>`).join('');
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;width:420px;max-width:90vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+      <h3 style="margin:0 0 8px;font-size:18px;color:#0f172a;">تنبيه مخزون منخفض</h3>
+      <p style="margin:0 0 14px;font-size:14px;color:#64748b;">هذه الفاتورة تحتوي على أصناف كميتها المتاحة نفدت أو وصلت للحد الأدنى:</p>
+      <div style="text-align:right;max-height:220px;overflow-y:auto;margin-bottom:18px;">${rows}</div>
+      <p style="margin:0 0 20px;font-size:12px;color:#94a3b8;">تنبيه إعلامي فقط — لن يمنع إتمام عملية البيع.</p>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button id="low-stock-warning-ok" style="padding:10px 24px;border-radius:8px;border:none;background:#4f46e5;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">متابعة إتمام البيع</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('low-stock-warning-ok').onclick = () => {
+    if (document.body.contains(overlay)) document.body.removeChild(overlay);
+    onContinue();
+  };
+}
+
+function finalizeSaleInvoice(lines) {
   const subtotal = lines.reduce((s,l)=>s+l.total,0);
   const discount  = parseFloat(document.getElementById('sale-discount')?.value||0);
   const taxRate   = parseFloat(document.getElementById('sale-tax-rate')?.value||0);
