@@ -1466,6 +1466,7 @@ function editItem(id) {
   const el2 = document.getElementById('modal-item-barcode2'); if(el2) el2.value = item.barcode2||'';
   const elTax = document.getElementById('modal-item-tax'); if(elTax) elTax.value = item.taxRate||0;
   const elMax = document.getElementById('modal-item-maxstock'); if(elMax) elMax.value = item.maxStock||0;
+  const elMin = document.getElementById('modal-item-minstock'); if(elMin) elMin.value = item.minStock||0;
   const elBrand = document.getElementById('modal-item-brand'); if(elBrand) elBrand.value = item.brand||'';
   const elDefsup = document.getElementById('modal-item-defsup'); if(elDefsup) elDefsup.value = item.defaultSupplier||'';
   // العملة والأسعار
