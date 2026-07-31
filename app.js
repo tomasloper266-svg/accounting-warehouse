@@ -1608,6 +1608,7 @@ function saveItemModal() {
   const id = document.getElementById('modal-item-id').value;
   const item = db.items.find(i=>i.id===id);
   if(!item) return;
+  const _oldPrice = parseFloat(item.price) || 0; // سعر البيع قبل التعديل (للتدقيق)
   item.name = document.getElementById('modal-item-name').value;
   item.type = document.getElementById('modal-item-type').value;
   item.unit = document.getElementById('modal-item-unit').value;
@@ -1636,6 +1637,12 @@ function saveItemModal() {
   if(elP3) item.price3 = Math.round(toUSD(parseFloat(elP3.value)||0) * 10000) / 10000;
   item.priceCurrency = currency;
   item.minStock = parseFloat(document.getElementById('modal-item-minstock')?.value)||0;
+  // تدقيق: سجّل أي تعديل فعلي على سعر البيع الرئيسي
+  const _newPrice = parseFloat(item.price) || 0;
+  if (Math.abs(_newPrice - _oldPrice) > 0.0001) {
+    logAudit(AUDIT_TYPES.PRICE_EDIT,
+      `تعديل سعر بيع المادة ${item.id}${item.name ? ' (' + item.name + ')' : ''} من ${fmtUSD(_oldPrice)} إلى ${fmtUSD(_newPrice)}`);
+  }
   saveData(db);
   document.getElementById('item-modal').classList.add('hidden');
   renderItems();
