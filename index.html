@@ -2822,6 +2822,37 @@
           <div class="stmt-hub-title">كشف أرصدة العملاء</div>
           <div class="stmt-hub-desc">أرصدة جميع الزبائن والموردين دفعة واحدة</div>
         </div>
+        <div class="stmt-hub-card" onclick="navigate('audit-log')">
+          <div class="stmt-hub-icon">🛡️</div>
+          <div class="stmt-hub-title">سجل التدقيق</div>
+          <div class="stmt-hub-desc">سجل زمني بكل عمليات الحذف والتعديل الحساسة (حذف فاتورة، تعديل سعر بيع، حذف دفعة، تعديل رصيد يدوي)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         🛡️ سجل التدقيق (Audit Log)
+         ============================================================ -->
+    <div id="page-audit-log" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">🛡️ سجل التدقيق</div>
+          <div class="page-subtitle" id="audit-log-subtitle">جميع عمليات الحذف والتعديل الحساسة — الأحدث أولاً</div>
+        </div>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:170px">التاريخ والوقت</th>
+              <th style="width:150px">نوع العملية</th>
+              <th style="width:150px">المستخدم</th>
+              <th>التفاصيل</th>
+            </tr>
+          </thead>
+          <tbody id="audit-log-tbody"></tbody>
+        </table>
       </div>
     </div>
 

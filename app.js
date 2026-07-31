@@ -255,6 +255,60 @@ function logAudit(type, details) {
   saveData(db);
 }
 
+// لون شارة نوع العملية في شاشة سجل التدقيق — يميّز الحذف عن التعديل بصرياً.
+function auditTypeBadgeClass(type) {
+  switch (type) {
+    case AUDIT_TYPES.INVOICE_DELETE: return 'badge-red';
+    case AUDIT_TYPES.PAYMENT_DELETE: return 'badge-yellow';
+    case AUDIT_TYPES.PRICE_EDIT:     return 'badge-blue';
+    case AUDIT_TYPES.BALANCE_EDIT:   return 'badge-purple';
+    default:                         return 'badge-gray';
+  }
+}
+
+// تهريب نصوص التفاصيل قبل الحقن في innerHTML — تحتوي أسماء عملاء/أصناف يدخلها المستخدم.
+function auditEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// يعيد قيود سجل التدقيق مرتبة زمنياً تنازلياً (الأحدث أولاً).
+function sortedAuditLog() {
+  return (db.auditLog || [])
+    .slice()
+    .sort((a, b) => (b.ts || '').localeCompare(a.ts || '') || (b.id || '').localeCompare(a.id || ''));
+}
+
+// شاشة سجل التدقيق ضمن قسم التقارير — تعرض العمليات الحساسة، الأحدث أولاً.
+function renderAuditLog() {
+  const tbody = document.getElementById('audit-log-tbody');
+  const subtitle = document.getElementById('audit-log-subtitle');
+  if (!tbody) return;
+
+  const rows = sortedAuditLog();
+
+  if (subtitle) {
+    subtitle.textContent = rows.length
+      ? `${rows.length} عملية مسجّلة — الأحدث أولاً`
+      : 'لا توجد عمليات مسجّلة بعد';
+  }
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted)">لا توجد عمليات مسجّلة في سجل التدقيق</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="white-space:nowrap;color:var(--text-muted)">${r.date || '—'} <span style="opacity:.7">${r.time || ''}</span></td>
+      <td><span class="badge ${auditTypeBadgeClass(r.type)}">${auditEscape(r.type) || '—'}</span></td>
+      <td style="font-weight:500">${auditEscape(r.user) || '—'}</td>
+      <td>${auditEscape(r.details) || '—'}</td>
+    </tr>
+  `).join('');
+}
+
 function loadData() {
   return db || JSON.parse(JSON.stringify(defaultData));
 }
@@ -516,7 +570,7 @@ function fmt(n) { return fmtOld(n); }
 // ============================================================
 // ROUTER
 // ============================================================
-const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','statements-hub','invoices-statement','payments-statement','account-closing','customer-balances','trash','daily-report'];
+const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','statements-hub','invoices-statement','payments-statement','account-closing','customer-balances','trash','daily-report','audit-log'];
 let currentPage = 'dashboard';
 
 function navigate(page) {
@@ -555,6 +609,7 @@ function render(page) {
     case 'customer-balances': renderCustomerBalances(); break;
     case 'trash': renderTrash(); break;
     case 'daily-report': renderDailyReport(); break;
+    case 'audit-log': renderAuditLog(); break;
   }
 }
 
