@@ -1830,7 +1830,7 @@ body[data-page="dashboard"] #global-search-bar { display: none !important; }
    the dashboard, where most in-page content is hidden by the mockup skin).
 ══════════════════════════════════════════════════════════════════ */
 .global-settings-btn {
-  position: fixed;
+  position: absolute;
   top: 18px;
   right: 22px;
   z-index: 250;
