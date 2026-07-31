@@ -2841,6 +2841,26 @@
         </div>
         <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
       </div>
+
+      <!-- شريط البحث والفلترة بالتاريخ -->
+      <div style="background:var(--surface-primary);border-radius:16px;border:1px solid var(--border-subtle);padding:18px 20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.05)">
+        <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+          <div class="form-group" style="margin:0;flex:1;min-width:220px">
+            <label class="form-label">🔍 بحث</label>
+            <input type="text" id="audit-search" class="input" placeholder="ابحث في نوع العملية، المستخدم، أو التفاصيل..." oninput="renderAuditLog()" style="width:100%">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">من تاريخ</label>
+            <input type="date" id="audit-from" class="input" onchange="renderAuditLog()" style="width:160px">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">إلى تاريخ</label>
+            <input type="date" id="audit-to" class="input" onchange="renderAuditLog()" style="width:160px">
+          </div>
+          <button class="btn btn-ghost" onclick="clearAuditFilters()" style="margin-bottom:2px">✕ مسح الفلاتر</button>
+        </div>
+      </div>
+
       <div class="invoice-table-wrap">
         <table>
           <thead>

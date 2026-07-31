@@ -286,16 +286,40 @@ function renderAuditLog() {
   const subtitle = document.getElementById('audit-log-subtitle');
   if (!tbody) return;
 
-  const rows = sortedAuditLog();
+  const allRows = sortedAuditLog();
+
+  // الفلاتر: بحث نصي (النوع/المستخدم/التفاصيل) ومدى تاريخي (شامل الطرفين).
+  const q    = (document.getElementById('audit-search')?.value || '').trim().toLowerCase();
+  const from = document.getElementById('audit-from')?.value || '';
+  const to   = document.getElementById('audit-to')?.value || '';
+
+  const rows = allRows.filter(r => {
+    if (from && (r.date || '') < from) return false;
+    if (to   && (r.date || '') > to)   return false;
+    if (q) {
+      const hay = `${r.type || ''} ${r.user || ''} ${r.details || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const hasFilter = !!(q || from || to);
 
   if (subtitle) {
-    subtitle.textContent = rows.length
-      ? `${rows.length} عملية مسجّلة — الأحدث أولاً`
-      : 'لا توجد عمليات مسجّلة بعد';
+    if (allRows.length === 0) {
+      subtitle.textContent = 'لا توجد عمليات مسجّلة بعد';
+    } else if (hasFilter) {
+      subtitle.textContent = `عرض ${rows.length} من ${allRows.length} عملية — الأحدث أولاً`;
+    } else {
+      subtitle.textContent = `${allRows.length} عملية مسجّلة — الأحدث أولاً`;
+    }
   }
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted)">لا توجد عمليات مسجّلة في سجل التدقيق</td></tr>';
+    const msg = hasFilter
+      ? 'لا توجد نتائج مطابقة للبحث أو الفترة المحددة'
+      : 'لا توجد عمليات مسجّلة في سجل التدقيق';
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted)">${msg}</td></tr>`;
     return;
   }
 
@@ -307,6 +331,17 @@ function renderAuditLog() {
       <td>${auditEscape(r.details) || '—'}</td>
     </tr>
   `).join('');
+}
+
+// مسح فلاتر شاشة سجل التدقيق وإعادة العرض الكامل.
+function clearAuditFilters() {
+  const s = document.getElementById('audit-search');
+  const f = document.getElementById('audit-from');
+  const t = document.getElementById('audit-to');
+  if (s) s.value = '';
+  if (f) f.value = '';
+  if (t) t.value = '';
+  renderAuditLog();
 }
 
 function loadData() {
