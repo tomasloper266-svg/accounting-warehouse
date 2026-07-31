@@ -5152,6 +5152,19 @@ function renderDamageStats() {
   if (el) el.textContent = fmtUSD(totalLoss);
   const el2 = document.getElementById('dmg-count');
   if (el2) el2.textContent = damages.length + ' سجل';
+  const el3 = document.getElementById('dmg-num');
+  if (el3) el3.textContent = nextDamageNumber();
+}
+
+// توليد رقم تسلسلي متزايد لا يتكرر: DMG-XXX = أكبر رقم موجود + 1.
+// يعتمد على أكبر قيمة وليس طول المصفوفة، فلا يتكرر الرقم بعد الحذف.
+function nextDamageNumber() {
+  const nums = (db.damages || []).map(d => {
+    const m = /^DMG-(\d+)$/.exec(d.number || '');
+    return m ? parseInt(m[1], 10) : 0;
+  });
+  const max = nums.length ? Math.max(...nums) : 0;
+  return 'DMG-' + String(max + 1).padStart(3, '0');
 }
 
 function renderDamagesList(search) {
@@ -5194,7 +5207,6 @@ function saveDamage() {
 
   if (!itemId) { showToast('اختر المادة', 'error'); return; }
   if (!qty || qty <= 0) { showToast('أدخل كمية صحيحة', 'error'); return; }
-  if (!reason) { showToast('اذكر سبب التالف', 'error'); return; }
 
   // تحقق من المخزون المتاح
   const inv = calcInventoryByWarehouse();
@@ -5207,7 +5219,7 @@ function saveDamage() {
 
   if (!db.damages) db.damages = [];
   const item = db.items.find(i => i.id === itemId);
-  const number = 'DMG-' + String(db.damages.length + 1).padStart(3, '0');
+  const number = nextDamageNumber();
   const cost = item?.cost || 0;
 
   db.damages.push({

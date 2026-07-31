@@ -2661,18 +2661,18 @@
             </div>
           </div>
           <div>
-            <label class="form-label" style="font-weight:700">سبب التالف *</label>
-            <select id="dmg-reason" class="input" style="margin-top:6px">
-              <option value="">-- اختر السبب --</option>
-              <option value="انتهاء الصلاحية">⏰ انتهاء الصلاحية</option>
-              <option value="كسر وتلف">💔 كسر وتلف</option>
-              <option value="حريق">🔥 حريق</option>
-              <option value="رطوبة وفساد">💧 رطوبة وفساد</option>
-              <option value="سرقة">🚨 سرقة</option>
-              <option value="عيب مصنعي">🔧 عيب مصنعي</option>
-              <option value="حوادث النقل">🚛 حوادث النقل</option>
-              <option value="أخرى">📝 أخرى</option>
-            </select>
+            <label class="form-label" style="font-weight:700">سبب التالف <span style="color:var(--text-muted);font-weight:400;font-size:11px">(اختياري)</span></label>
+            <input type="text" id="dmg-reason" class="input" list="dmg-reason-suggestions" placeholder="مثال: كسر، انتهاء صلاحية، تلف تخزين..." autocomplete="off" style="margin-top:6px">
+            <datalist id="dmg-reason-suggestions">
+              <option value="كسر"></option>
+              <option value="انتهاء صلاحية"></option>
+              <option value="تلف تخزين"></option>
+              <option value="رطوبة وفساد"></option>
+              <option value="حريق"></option>
+              <option value="سرقة"></option>
+              <option value="عيب مصنعي"></option>
+              <option value="حوادث النقل"></option>
+            </datalist>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
