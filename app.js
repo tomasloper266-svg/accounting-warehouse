@@ -2904,6 +2904,10 @@ function deleteCustomerPayment(customerName, index) {
       const appliedCash = (parseFloat(removed.amount) || 0) - (parseFloat(removed.creditAdded) || 0);
       cust.balance = roundMoney((cust.balance || 0) + appliedCash + (parseFloat(removed.discountOnPayment) || 0));
     }
+    logAudit(AUDIT_TYPES.PAYMENT_DELETE,
+      `حذف دفعة قبض من الزبون ${customerName} بقيمة ${fmtUSD(removed.amount || 0)}` +
+      `${removed.date ? ' بتاريخ ' + removed.date : ''}` +
+      `${removed.receiptNum ? ' (إيصال ' + removed.receiptNum + ')' : ''}`);
   }
   saveData(db);
   showToast('🗑️ تم حذف الدفعة', 'success');
@@ -3187,6 +3191,10 @@ function deleteSupplierPayment(supplierName, index) {
       const appliedCash = (parseFloat(removed.amount) || 0) - (parseFloat(removed.creditAdded) || 0);
       sup.balance = roundMoney((sup.balance || 0) + appliedCash + (parseFloat(removed.discountOnPayment) || 0));
     }
+    logAudit(AUDIT_TYPES.PAYMENT_DELETE,
+      `حذف دفعة دفع للمورد ${supplierName} بقيمة ${fmtUSD(removed.amount || 0)}` +
+      `${removed.date ? ' بتاريخ ' + removed.date : ''}` +
+      `${removed.receiptNum ? ' (إيصال ' + removed.receiptNum + ')' : ''}`);
   }
   saveData(db);
   showToast('🗑️ تم حذف الدفعة', 'success');
