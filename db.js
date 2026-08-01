@@ -792,6 +792,31 @@ function computeAccountSummary(args) {
 }
 
 // ============================================================
+// تأخر السداد على فاتورة آجلة — دالة نقية مشتركة مع الواجهة (app.js).
+// "الاستحقاق" = تاريخ الفاتورة + مهلة السداد الافتراضية (لا يوجد تاريخ استحقاق مخزّن مستقل).
+// أيام التأخير = عدد الأيام منذ تاريخ الاستحقاق = عمر الفاتورة (بالأيام) − مهلة السداد.
+// "متأخرة كثيراً" = تجاوز التأخير نفسه مهلة السداد (أي عمر الفاتورة > ضعف المهلة).
+// غير متأثرة بطريقة حساب المتبقي (remaining) نفسها — تأخذ remaining محسوباً من computeInvoiceRemaining كمدخل.
+function computeOverdueInfo(invoiceDate, remaining, paymentTermDays, todayDate) {
+  const rem = roundMoney(remaining);
+  const term = (Number(paymentTermDays) > 0) ? Number(paymentTermDays) : 30;
+  const notOverdue = { isOverdue: false, ageDays: 0, overdueDays: 0, isSevere: false, term };
+  if (rem <= CREDIT_EPSILON) return notOverdue;
+
+  const created = new Date(invoiceDate);
+  const today = todayDate ? new Date(todayDate) : new Date();
+  if (isNaN(created.getTime()) || isNaN(today.getTime())) return notOverdue;
+
+  // نقارن بتواريخ التقويم فقط (بلا وقت) لتفادي انحراف المنطقة الزمنية/الساعات.
+  const d0 = Date.UTC(created.getFullYear(), created.getMonth(), created.getDate());
+  const d1 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const ageDays = Math.floor((d1 - d0) / 86400000);
+  const overdueDays = ageDays - term;
+  if (overdueDays <= 0) return { isOverdue: false, ageDays, overdueDays: 0, isSevere: false, term };
+  return { isOverdue: true, ageDays, overdueDays, isSevere: overdueDays > term, term };
+}
+
+// ============================================================
 // سجل حركة الرصيد الإضافي (creditLedger) — محرك نقي مشترك
 // كل إضافة/خصم للرصيد الإضافي يجب أن يمر عبر هذا المحرك (لا تعديل مباشر):
 //   - recordCreditMovement: يطفّر رصيد الطرف ويضيف قيداً مدققاً.
@@ -925,6 +950,8 @@ module.exports = {
   computeOverpayment, applyCreditToInvoice, roundMoney, CREDIT_EPSILON,
   // كشف الحساب — دوال نقية مشتركة مع الواجهة
   isAutoDepositRecord, paymentSettlement, computeInvoiceRemaining, computeAccountSummary,
+  // تأخر السداد (الفواتير المتأخرة) — دالة نقية مشتركة مع الواجهة
+  computeOverdueInfo,
   // سجل حركة الرصيد الإضافي — محرك نقي مشترك مع الواجهة
   recordCreditMovement, reverseCreditMovements, creditMovementKey,
   // مردود المبيع — دوال نقية مشتركة مع الواجهة

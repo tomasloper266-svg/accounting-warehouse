@@ -2918,6 +2918,43 @@ function invoiceBalance(inv) {
            isDeferred: true };
 }
 
+// ============================================================
+// تأخر السداد على فاتورة آجلة — نسخة مرآوية حرفية من db.js (الريندرر لا يستطيع require).
+// "الاستحقاق" = تاريخ الفاتورة + مهلة السداد الافتراضية (لا يوجد تاريخ استحقاق مخزّن مستقل).
+// أيام التأخير = عدد الأيام منذ تاريخ الاستحقاق = عمر الفاتورة (بالأيام) − مهلة السداد.
+// "متأخرة كثيراً" = تجاوز التأخير نفسه مهلة السداد (أي عمر الفاتورة > ضعف المهلة).
+function computeOverdueInfo(invoiceDate, remaining, paymentTermDays, todayDate) {
+  const rem = roundMoney(remaining);
+  const term = (Number(paymentTermDays) > 0) ? Number(paymentTermDays) : 30;
+  const notOverdue = { isOverdue: false, ageDays: 0, overdueDays: 0, isSevere: false, term };
+  if (rem <= CREDIT_EPSILON) return notOverdue;
+
+  const created = new Date(invoiceDate);
+  const today = todayDate ? new Date(todayDate) : new Date();
+  if (isNaN(created.getTime()) || isNaN(today.getTime())) return notOverdue;
+
+  // نقارن بتواريخ التقويم فقط (بلا وقت) لتفادي انحراف المنطقة الزمنية/الساعات.
+  const d0 = Date.UTC(created.getFullYear(), created.getMonth(), created.getDate());
+  const d1 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const ageDays = Math.floor((d1 - d0) / 86400000);
+  const overdueDays = ageDays - term;
+  if (overdueDays <= 0) return { isOverdue: false, ageDays, overdueDays: 0, isSevere: false, term };
+  return { isOverdue: true, ageDays, overdueDays, isSevere: overdueDays > term, term };
+}
+
+// فواتير البيع الآجلة المتأخرة فقط (remaining>0 وتجاوزت المهلة) — الأكثر تأخراً أولاً.
+// مقتصرة على فواتير البيع (دين الزبائن علينا) لا فواتير الشراء — "الزبون" هو الحقل الوحيد المطلوب في هذا الكشف.
+function overdueSalesInvoices() {
+  const term = defaultPaymentTermDays();
+  return activeSalesInvoices()
+    .map(inv => {
+      const bal = invoiceBalance(inv);
+      return { inv, bal, overdue: computeOverdueInfo(inv.date, bal.remaining, term) };
+    })
+    .filter(r => r.overdue.isOverdue)
+    .sort((a, b) => b.overdue.overdueDays - a.overdue.overdueDays);
+}
+
 // شارة حالة السداد (محسوبة حياً) — size: 'sm' للقوائم، 'lg' للتقارير
 function paymentStatusBadge(inv, size) {
   const b  = invoiceBalance(inv);
