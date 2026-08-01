@@ -595,6 +595,13 @@
             <option value="special">خاص</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">عملة الفاتورة</label>
+          <select id="sale-currency" class="input" onchange="renderSaleTotal()">
+            <option value="USD">دولار $</option>
+            <option value="SYP">ليرة سورية ل.س</option>
+          </select>
+        </div>
       </div>
 
       <div class="invoice-table-wrap">
@@ -721,6 +728,13 @@
           <label class="form-label">المورد <span class="tag-auto">✦ يُضاف تلقائياً</span></label>
           <input type="text" id="pur-supplier-input" class="input" placeholder="اكتب اسم المورد..." list="suppliers-datalist" autocomplete="off">
           <datalist id="suppliers-datalist"></datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">عملة الفاتورة</label>
+          <select id="pur-currency" class="input" onchange="renderPurchaseTotal()">
+            <option value="USD">دولار $</option>
+            <option value="SYP">ليرة سورية ل.س</option>
+          </select>
         </div>
       </div>
       <div class="invoice-table-wrap">

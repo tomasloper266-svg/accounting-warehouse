@@ -591,6 +591,34 @@ function usdToOld(usd) { return usd * getRate(); }
 // تحويل دولار → ل.س جديدة (حذف صفرين = قسمة 100)
 function usdToNew(usd) { return usd * getRate() / 100; }
 
+// ── عملة الفاتورة وسعر صرفها المجمَّد وقت الإنشاء ──
+// المبالغ تُخزَّن دائماً بالدولار كأساس محايد؛ العملة والسعر المجمَّد يحكمان العرض فقط.
+// سعر الصرف المخزَّن مع الفاتورة — لا يتغيّر أبداً بتغيّر السعر الحالي لاحقاً.
+function invRate(inv) {
+  const r = inv && inv.usdToOld != null ? parseFloat(inv.usdToOld) : NaN;
+  return (r && r > 0) ? r : getRate();
+}
+// عملة الفاتورة المختارة وقت الإنشاء (USD افتراضياً للفواتير القديمة).
+function invCurrency(inv) { return (inv && inv.currency === 'SYP') ? 'SYP' : 'USD'; }
+// تنسيق مبلغ (مخزَّن بالدولار) بعملة الفاتورة نفسها وبسعرها المجمَّد.
+function fmtInv(inv, usd) {
+  return invCurrency(inv) === 'SYP' ? fmtOld(usd * invRate(inv)) : fmtUSD(usd);
+}
+// المعادل الثانوي لمبلغ الفاتورة بالسعر المجمَّد (ل.س للفاتورة الدولارية، $ للفاتورة الليرية).
+function fmtInvEquiv(inv, usd) {
+  return invCurrency(inv) === 'SYP' ? fmtUSD(usd) : fmtOld(usd * invRate(inv));
+}
+// تحويل مبلغ فاتورة (بالدولار) إلى عملة عرض مطلوبة بسعرها المجمَّد الخاص — تُستخدم في التقارير.
+function invAmountIn(inv, usd, displayCurrency) {
+  return displayCurrency === 'SYP' ? usd * invRate(inv) : usd;
+}
+// نص وصفي لعملة الفاتورة وسعرها المجمَّد — للعرض في التفاصيل والطباعة.
+function invCurrencyLabel(inv) {
+  return invCurrency(inv) === 'SYP'
+    ? 'ليرة سورية (سعر مجمَّد ' + new Intl.NumberFormat('ar-SY').format(Math.round(invRate(inv))) + ' ل.س/$)'
+    : 'دولار (سعر مجمَّد ' + new Intl.NumberFormat('ar-SY').format(Math.round(invRate(inv))) + ' ل.س/$)';
+}
+
 function fmtUSD(n) { return '$ ' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtOld(n) { return new Intl.NumberFormat('ar-SY').format(Math.round(n)) + ' ل.س ق'; }
 function fmtNew(n) { return new Intl.NumberFormat('ar-SY').format(Math.round(n)) + ' ل.س ج'; }
@@ -1078,13 +1106,17 @@ function renderSaleTotal() {
   const paidEl = document.getElementById('sale-paid-amount');
   if(paidEl && !paidEl.value) paidEl.placeholder = fmtUSD(total) + ' (الكامل)';
 
-  // Equivalent in SYP
+  // المعادل حسب العملة المختارة — السعر الحالي هو ما سيُجمّد مع الفاتورة
   const eqEl = document.getElementById('sale-total-equiv');
   if(eqEl && total > 0) {
+    const cur = document.getElementById('sale-currency')?.value === 'SYP' ? 'SYP' : 'USD';
+    const rate = getRate();
+    const main = cur === 'SYP' ? fmtOld(total * rate) : fmtUSD(total);
+    const rateNote = 'سعر يُجمّد مع الفاتورة: ' + new Intl.NumberFormat('ar-SY').format(Math.round(rate)) + ' ل.س/$';
     eqEl.innerHTML =
       '<span style="font-size:11.5px;color:var(--text-muted);">' +
-      fmtOld(usdToOld(total)) + ' &nbsp;|&nbsp; ' + fmtNew(usdToNew(total)) +
-      '</span>';
+      'عملة الفاتورة: <strong>' + (cur === 'SYP' ? 'ليرة' : 'دولار') + '</strong> — ' + main +
+      ' &nbsp;|&nbsp; ' + rateNote + '</span>';
   } else if(eqEl) {
     eqEl.innerHTML = '';
   }
@@ -1202,7 +1234,8 @@ function finalizeSaleInvoice(lines) {
     taxRate, taxAmount,
     creditApplied,
     note: saleNote,
-    currency: 'USD',
+    // عملة الفاتورة المختارة وسعر الصرف المجمَّد وقت الإنشاء — يبقيان ثابتين مدى الحياة
+    currency: (document.getElementById('sale-currency')?.value === 'SYP' ? 'SYP' : 'USD'),
     usdToOld: getRate()
   };
   db.salesInvoices.push(inv);
@@ -1505,10 +1538,15 @@ function renderPurchaseTotal() {
   const totalEl = document.getElementById('pur-total');
   if(totalEl) totalEl.textContent = fmtUSD(total);
   const eqEl = document.getElementById('pur-total-equiv');
-  if(eqEl) eqEl.innerHTML =
-    '<span style="color:var(--text-muted);font-size:13px">' +
-    fmtOld(usdToOld(total)) + ' &nbsp;|&nbsp; ' + fmtNew(usdToNew(total)) +
-    '</span>';
+  if(eqEl) {
+    const cur = document.getElementById('pur-currency')?.value === 'SYP' ? 'SYP' : 'USD';
+    const rate = getRate();
+    const main = cur === 'SYP' ? fmtOld(total * rate) : fmtUSD(total);
+    eqEl.innerHTML =
+      '<span style="color:var(--text-muted);font-size:13px">' +
+      'عملة الفاتورة: <strong>' + (cur === 'SYP' ? 'ليرة' : 'دولار') + '</strong> — ' + main +
+      ' &nbsp;|&nbsp; سعر يُجمّد: ' + new Intl.NumberFormat('ar-SY').format(Math.round(rate)) + ' ل.س/$</span>';
+  }
   const paidEl = document.getElementById('pur-paid-amount');
   if(paidEl && !paidEl.value) paidEl.placeholder = fmtUSD(total) + ' (الكامل)';
 }
@@ -1606,7 +1644,9 @@ function savePurchaseInvoice() {
     shippingCost, shippingAccount:'',
     creditApplied,
     note: purNote,
-    currency:'USD', usdToOld: getRate()
+    // عملة الفاتورة المختارة وسعر الصرف المجمَّد وقت الإنشاء — يبقيان ثابتين مدى الحياة
+    currency: (document.getElementById('pur-currency')?.value === 'SYP' ? 'SYP' : 'USD'),
+    usdToOld: getRate()
   };
   db.purchaseInvoices.push(inv);
 
