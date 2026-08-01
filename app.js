@@ -2176,30 +2176,47 @@ function renderReports() {
   const purchases = activePurchaseInvoices().filter(matchPeriod);
   const returns   = (db.returns || []).filter(matchPeriod);
 
-  const totalSales     = sales.reduce((s, i) => s + (i.total || 0), 0);
-  const totalPurchases = purchases.reduce((s, i) => s + (i.total || 0), 0);
-  const totalReturns   = returns.reduce((s, r) => s + (r.total || 0), 0);
-  // خسائر التوالف لنفس فترة التقرير المعروضة — تُخصم من صافي الربح.
-  const damagesLoss  = (db.damages || []).filter(matchPeriod).reduce((s, d) => s + damageLoss(d), 0);
+  // فلتر عملة العرض: يُحوّل كل فاتورة بسعر صرفها المجمَّد ثم تُجمّع — لا بالسعر الحالي
+  const repCur = document.getElementById('report-currency')?.value === 'SYP' ? 'SYP' : 'USD';
+  const salesUSD     = sales.reduce((s, i) => s + (i.total || 0), 0);
+  const salesSYP     = sales.reduce((s, i) => s + (i.total || 0) * invRate(i), 0);
+  const purchasesUSD = purchases.reduce((s, i) => s + (i.total || 0), 0);
+  const purchasesSYP = purchases.reduce((s, i) => s + (i.total || 0) * invRate(i), 0);
+  const returnsUSD   = returns.reduce((s, r) => s + (r.total || 0), 0);
+  const returnsSYP   = returns.reduce((s, r) => s + (r.total || 0) * invRate(r), 0);
+  const damageItems  = (db.damages || []).filter(matchPeriod);
+  const damagesUSD   = damageItems.reduce((s, d) => s + damageLoss(d), 0);
+  const damagesSYP   = damageItems.reduce((s, d) => s + damageLoss(d) * invRate(d), 0);
+  // اختيار القيمة بالعملة المعروضة، وتنسيقها، والمعادل بالعملة الأخرى
+  const pick  = (usd, syp) => repCur === 'SYP' ? syp : usd;
+  const money = (n) => repCur === 'SYP' ? fmtOld(n) : fmtUSD(n);
+  const other = (usd, syp) => repCur === 'SYP' ? fmtUSD(usd) : fmtOld(syp);
+  const totalSales     = pick(salesUSD, salesSYP);
+  const totalPurchases = pick(purchasesUSD, purchasesSYP);
+  const totalReturns   = pick(returnsUSD, returnsSYP);
+  const damagesLoss    = pick(damagesUSD, damagesSYP);   // خسائر التوالف تُخصم من صافي الربح
   const grossProfit  = totalSales - totalPurchases;
   const profit  = grossProfit - damagesLoss;   // صافي الربح = الربح − إجمالي خسائر التوالف
   const margin  = totalSales > 0 ? ((profit / totalSales) * 100).toFixed(1) : 0;
   const avgInv  = sales.length > 0 ? totalSales / sales.length : 0;
   const activeCusts = [...new Set(sales.map(i => i.customerName).filter(Boolean))].length;
+  // معادل الربح بالعملة الأخرى — للعرض الثانوي
+  const profitOtherUSD = (salesUSD - purchasesUSD) - damagesUSD;
+  const profitOtherSYP = (salesSYP - purchasesSYP) - damagesSYP;
 
   // ── KPI بطاقات رئيسية ──
-  document.getElementById('rep-total-sales').textContent     = fmtUSD(totalSales);
+  document.getElementById('rep-total-sales').textContent     = money(totalSales);
   document.getElementById('rep-sales-sub').textContent       = sales.length + ' فاتورة';
-  document.getElementById('rep-sales-count').textContent     = fmtOld(usdToOld(totalSales));
-  document.getElementById('rep-total-purchases').textContent = fmtUSD(totalPurchases);
+  document.getElementById('rep-sales-count').textContent     = other(salesUSD, salesSYP);
+  document.getElementById('rep-total-purchases').textContent = money(totalPurchases);
   document.getElementById('rep-purchases-sub').textContent   = purchases.length + ' فاتورة';
-  document.getElementById('rep-purchases-count').textContent = fmtOld(usdToOld(totalPurchases));
-  document.getElementById('rep-profit').textContent          = fmtUSD(profit);
+  document.getElementById('rep-purchases-count').textContent = other(purchasesUSD, purchasesSYP);
+  document.getElementById('rep-profit').textContent          = money(profit);
   document.getElementById('rep-margin').textContent          = 'هامش الربح: ' + margin + '%';
-  document.getElementById('rep-profit-old').textContent      = fmtOld(usdToOld(profit));
+  document.getElementById('rep-profit-old').textContent      = other(profitOtherUSD, profitOtherSYP);
   const dmgLossEl = document.getElementById('rep-damages-loss');
   if (dmgLossEl) dmgLossEl.textContent = damagesLoss > 0
-    ? 'ربح إجمالي ' + fmtUSD(grossProfit) + ' − توالف ' + fmtUSD(damagesLoss)
+    ? 'ربح إجمالي ' + money(grossProfit) + ' − توالف ' + money(damagesLoss)
     : '';
 
   // لون بطاقة الربح
@@ -2220,9 +2237,9 @@ function renderReports() {
   const custEl = document.getElementById('rep-active-customers');
   const salesBadge = document.getElementById('rep-sales-badge');
   const purBadge   = document.getElementById('rep-pur-badge');
-  if (retEl)  retEl.textContent  = fmtUSD(totalReturns);
+  if (retEl)  retEl.textContent  = money(totalReturns);
   if (retCnt) retCnt.textContent = returns.length + ' مرتجع';
-  if (avgEl)  avgEl.textContent  = fmtUSD(avgInv);
+  if (avgEl)  avgEl.textContent  = money(avgInv);
   if (custEl) custEl.textContent = activeCusts;
   if (salesBadge) salesBadge.textContent = sales.length + ' فاتورة';
   if (purBadge)   purBadge.textContent   = purchases.length + ' فاتورة';
@@ -2231,7 +2248,8 @@ function renderReports() {
   const custMap = {};
   sales.forEach(inv => {
     const n = inv.customerName || '—';
-    custMap[n] = (custMap[n] || 0) + (inv.total || 0);
+    // تجميع بالعملة المعروضة — كل فاتورة بسعرها المجمَّد
+    custMap[n] = (custMap[n] || 0) + (repCur === 'SYP' ? (inv.total || 0) * invRate(inv) : (inv.total || 0));
   });
   const topCusts = Object.entries(custMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const topCustsEl = document.getElementById('rep-top-customers');
@@ -2251,7 +2269,7 @@ function renderReports() {
               <div style="background:linear-gradient(90deg,#0ea5e9,#3b82f6);height:5px;width:${pct}%;border-radius:999px"></div>
             </div>
           </div>
-          <span style="font-size:13px;font-weight:700;color:#0ea5e9;white-space:nowrap">${fmtUSD(val)}</span>
+          <span style="font-size:13px;font-weight:700;color:#0ea5e9;white-space:nowrap">${money(val)}</span>
         </div>`;
       }).join('');
     }
@@ -2306,7 +2324,7 @@ function renderReports() {
           <td style="color:var(--text-muted)">${inv.date}</td>
           <td style="text-align:center">${inv.discount > 0 ? `<span style="color:#f59e0b;font-weight:600">${inv.discount}%</span>` : '—'}</td>
           <td style="text-align:center">${payBadge}</td>
-          <td style="text-align:left"><strong style="color:#0ea5e9">${fmtUSD(inv.total)}</strong></td>
+          <td style="text-align:left"><strong style="color:#0ea5e9">${fmtInv(inv, inv.total)}</strong> ${invCurrencyBadge(inv)}</td>
         </tr>`;
       }).join('');
     }
@@ -2325,7 +2343,7 @@ function renderReports() {
           <td style="font-weight:500">${inv.supplierName || '—'}</td>
           <td style="color:var(--text-muted)">${inv.date}</td>
           <td style="text-align:center">${payBadge}</td>
-          <td style="text-align:left"><strong style="color:#f59e0b">${fmtUSD(inv.total)}</strong></td>
+          <td style="text-align:left"><strong style="color:#f59e0b">${fmtInv(inv, inv.total)}</strong> ${invCurrencyBadge(inv)}</td>
         </tr>`;
       }).join('');
     }

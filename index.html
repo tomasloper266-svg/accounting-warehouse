@@ -939,6 +939,13 @@
                 <option value="custom">مخصص</option>
               </select>
             </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">💱 عملة العرض</label>
+              <select id="report-currency" class="input" onchange="renderReports()" style="width:150px">
+                <option value="USD">دولار $</option>
+                <option value="SYP">ليرة سورية ل.س</option>
+              </select>
+            </div>
             <div id="report-daily-row" class="form-group" style="display:none;margin:0">
               <label class="form-label">التاريخ</label>
               <input type="date" id="report-filter-date" class="input" onchange="renderReports()" style="width:160px">
