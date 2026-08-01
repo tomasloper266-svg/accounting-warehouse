@@ -1922,6 +1922,20 @@ function renderSettings() {
   const rate = db.exchange.usdToOld;
   document.getElementById('set-usd-rate').value = rate;
   updateRateDisplay(rate);
+  const recEmail = document.getElementById('set-recovery-email');
+  if (recEmail) recEmail.value = localStorage.getItem('app_recovery_email') || '';
+}
+
+// حفظ/تحديث بريد استعادة كلمة السر من الإعدادات
+function saveRecoveryEmail() {
+  const inp = document.getElementById('set-recovery-email');
+  const email = (inp ? inp.value : '').trim();
+  if (!isValidEmail(email)) {
+    showToast('⚠️ أدخل بريداً إلكترونياً صحيحاً', 'error');
+    return;
+  }
+  localStorage.setItem('app_recovery_email', email);
+  showToast('✅ تم حفظ بريد الاستعادة بنجاح', 'success');
 }
 
 // ✅ استعادة المواد الافتراضية — تضيف المواد الناقصة فقط دون حذف الموجودة
