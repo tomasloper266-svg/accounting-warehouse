@@ -2886,6 +2886,11 @@
           <div class="stmt-hub-title">كشف دفعات</div>
           <div class="stmt-hub-desc">كل إيصالات القبض والدفع المسجلة</div>
         </div>
+        <div class="stmt-hub-card" onclick="navigate('overdue-invoices-statement')">
+          <div class="stmt-hub-icon">⏰</div>
+          <div class="stmt-hub-title">كشف الفواتير المتأخرة</div>
+          <div class="stmt-hub-desc">فواتير بيع آجلة تجاوزت مهلة السداد الافتراضية وما زال عليها مبلغ متبقّي، مرتّبة حسب أيام التأخير</div>
+        </div>
         <div class="stmt-hub-card" onclick="navigate('statements')">
           <div class="stmt-hub-icon">👤</div>
           <div class="stmt-hub-title">كشف حساب عميل ومادة</div>
@@ -3012,6 +3017,33 @@
             </tr>
           </thead>
           <tbody id="payments-statement-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         ⏰ كشف الفواتير المتأخرة
+         ============================================================ -->
+    <div id="page-overdue-invoices-statement" class="hidden">
+      <div class="page-header flex items-center" style="justify-content:space-between">
+        <div>
+          <div class="page-title">⏰ كشف الفواتير المتأخرة</div>
+          <div class="page-subtitle">فواتير بيع آجلة تجاوزت مهلة السداد وما زال عليها مبلغ متبقّي، مرتّبة من الأكثر تأخراً إلى الأقل <span id="overdue-invoices-statement-summary" style="color:var(--text-secondary);font-weight:700"></span></div>
+        </div>
+        <button class="btn btn-ghost" onclick="navigate('statements-hub')">↩ رجوع للكشوفات</button>
+      </div>
+      <div class="invoice-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم الفاتورة</th>
+              <th>الزبون</th>
+              <th>تاريخ الفاتورة</th>
+              <th style="text-align:left">المبلغ المتبقّي</th>
+              <th style="text-align:center">أيام التأخير</th>
+            </tr>
+          </thead>
+          <tbody id="overdue-invoices-statement-tbody"></tbody>
         </table>
       </div>
     </div>

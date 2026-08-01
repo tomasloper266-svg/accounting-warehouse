@@ -650,7 +650,7 @@ function fmt(n) { return fmtOld(n); }
 // ============================================================
 // ROUTER
 // ============================================================
-const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','statements-hub','invoices-statement','payments-statement','account-closing','customer-balances','trash','daily-report','audit-log'];
+const pages = ['dashboard','invoice-sale','invoice-purchase','items','customers','suppliers','settings','reports','returns','receipt-customer','receipt-supplier','warehouses','damages','stock','statements','statements-hub','invoices-statement','payments-statement','overdue-invoices-statement','account-closing','customer-balances','trash','daily-report','audit-log'];
 let currentPage = 'dashboard';
 
 function navigate(page) {
@@ -685,6 +685,7 @@ function render(page) {
     case 'statements-hub': renderStatementsHub(); break;
     case 'invoices-statement': renderInvoicesStatement(); break;
     case 'payments-statement': renderPaymentsStatement(); break;
+    case 'overdue-invoices-statement': renderOverdueInvoicesStatement(); break;
     case 'account-closing': renderAccountClosing(); break;
     case 'customer-balances': renderCustomerBalances(); break;
     case 'trash': renderTrash(); break;
@@ -6729,6 +6730,40 @@ function renderPaymentsStatement() {
       <td style="text-align:center">${paymentMethodLabel(p.paymentMethod)}</td>
       <td style="text-align:left;font-weight:700;color:var(--success-600)">${fmtUSD(parseFloat(p.amount)||0)}</td>
     </tr>`).join('');
+}
+
+// كشف الفواتير المتأخرة — فواتير بيع آجلة تجاوزت مهلة السداد وما زال عليها مبلغ متبقّي.
+// المبلغ المتبقّي يُعرض بعملة الفاتورة ذاتها (بلا تحويل قسري) التزاماً بمبدأ تجميد العملة/السعر المعمول به في المشروع.
+function renderOverdueInvoicesStatement() {
+  const tbody = document.getElementById('overdue-invoices-statement-tbody');
+  if (!tbody) return;
+
+  const term = defaultPaymentTermDays();
+  const summary = document.getElementById('overdue-invoices-statement-summary');
+  if (summary) summary.textContent = `مهلة السداد الافتراضية الحالية: ${term} يوماً`;
+
+  const rows = overdueSalesInvoices();
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">✅ لا توجد فواتير متأخرة حالياً</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(({ inv, bal, overdue }) => {
+    const color = overdue.isSevere ? '#dc2626' : '#f59e0b'; // أحمر للمتأخرة كثيراً، برتقالي للمتأخرة العادية
+    const rowBg  = overdue.isSevere ? 'rgba(220,38,38,.06)' : 'transparent';
+    const badge  = overdue.isSevere
+      ? '<span style="font-size:10px;font-weight:800;color:#dc2626;background:rgba(220,38,38,.1);padding:2px 8px;border-radius:6px">متأخرة كثيراً</span>'
+      : '<span style="font-size:10px;font-weight:800;color:#b45309;background:rgba(245,158,11,.12);padding:2px 8px;border-radius:6px">متأخرة</span>';
+    return `
+    <tr style="background:${rowBg};cursor:pointer" onclick="openInvoiceDetail('${inv.number}')">
+      <td><span class="inv-num">${inv.number}</span> ${invCurrencyBadge(inv)}</td>
+      <td>${inv.customerName || '—'}</td>
+      <td>${inv.date || '—'}</td>
+      <td style="text-align:left;font-weight:700;color:${color}">${fmtInv(inv, bal.remaining)}</td>
+      <td style="text-align:center;font-weight:800;color:${color}">${overdue.overdueDays} يوم ${badge}</td>
+    </tr>`;
+  }).join('');
 }
 
 // تسكير حساب — عرض مبدئي لرصيد الطرف تمهيداً لإضافة منطق الإقفال لاحقاً
