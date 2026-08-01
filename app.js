@@ -618,6 +618,14 @@ function invCurrencyLabel(inv) {
     ? 'ليرة سورية (سعر مجمَّد ' + new Intl.NumberFormat('ar-SY').format(Math.round(invRate(inv))) + ' ل.س/$)'
     : 'دولار (سعر مجمَّد ' + new Intl.NumberFormat('ar-SY').format(Math.round(invRate(inv))) + ' ل.س/$)';
 }
+// شارة مختصرة تُظهر عملة الفاتورة المجمَّدة في الجداول.
+function invCurrencyBadge(inv) {
+  const syp = invCurrency(inv) === 'SYP';
+  const bg = syp ? '#e0f2fe' : '#ede9fe';
+  const fg = syp ? '#075985' : '#5b21b6';
+  const txt = syp ? 'ل.س' : '$';
+  return '<span style="font-size:9px;background:' + bg + ';color:' + fg + ';padding:1px 5px;border-radius:8px;margin-right:4px" title="' + invCurrencyLabel(inv) + '">' + txt + '</span>';
+}
 
 function fmtUSD(n) { return '$ ' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fmtOld(n) { return new Intl.NumberFormat('ar-SY').format(Math.round(n)) + ' ل.س ق'; }
@@ -1296,8 +1304,8 @@ function printInvoice(invNumber) {
     return `<tr>
       <td style="font-weight:600">${item?.name||l.itemId}</td>
       <td class="col-qty">${l.qty}</td>
-      <td class="col-price">${fmtUSD(l.price)}</td>
-      <td class="col-total">${fmtUSD(l.total)}</td>
+      <td class="col-price">${fmtInv(inv, l.price)}</td>
+      <td class="col-total">${fmtInv(inv, l.total)}</td>
     </tr>`;
   }).join('');
 
@@ -1396,26 +1404,34 @@ function printInvoice(invNumber) {
 
   <div class="print-totals">
     <div class="print-totals-box">
+      <div class="print-total-row">
+        <span class="print-total-label">عملة الفاتورة</span>
+        <span class="print-total-value">${invCurrencyLabel(inv)}</span>
+      </div>
       <div class="print-total-row total">
         <span class="print-total-label">المبلغ الإجمالي</span>
-        <span class="print-total-value">${fmtUSD(inv.total)}</span>
+        <span class="print-total-value">${fmtInv(inv, inv.total)}</span>
       </div>
       <div class="print-total-row">
         <span class="print-total-label">المدفوع</span>
-        <span class="print-total-value">${fmtUSD(bal.paid)}</span>
+        <span class="print-total-value">${fmtInv(inv, bal.paid)}</span>
       </div>
       <div class="print-total-row ${bal.remaining > 0.005 ? 'due' : 'settled'}">
         <span class="print-total-label">المتبقي (الدين)</span>
-        <span class="print-total-value">${fmtUSD(bal.remaining)}</span>
+        <span class="print-total-value">${fmtInv(inv, bal.remaining)}</span>
       </div>
       ${creditApplied > 0 ? `<div class="print-total-row credit-applied">
         <span class="print-total-label">💳 مستخدم من الرصيد الإضافي</span>
-        <span class="print-total-value">${fmtUSD(creditApplied)}</span>
+        <span class="print-total-value">${fmtInv(inv, creditApplied)}</span>
       </div>` : ''}
       ${creditBalance > 0 ? `<div class="print-total-row credit-balance">
         <span class="print-total-label">💰 الرصيد الإضافي المتبقي ${partyOwnerLabel}</span>
-        <span class="print-total-value">${fmtUSD(creditBalance)}</span>
+        <span class="print-total-value">${fmtInv(inv, creditBalance)}</span>
       </div>` : ''}
+      <div class="print-total-row">
+        <span class="print-total-label">المعادل</span>
+        <span class="print-total-value">${fmtInvEquiv(inv, inv.total)}</span>
+      </div>
     </div>
   </div>
 
@@ -2945,7 +2961,9 @@ function openCustomerAccount(customerName) {
   const remEl = document.getElementById('ca-remaining');
   remEl.textContent = fmtUSD(acc.remaining);
   remEl.style.color = acc.remaining > 0 ? 'var(--red-600)' : 'var(--green-700)';
-  document.getElementById('ca-remaining-old').textContent = fmtOld(usdToOld(acc.remaining));
+  // المعادل بالليرة يُحسب لكل فاتورة بسعرها المجمَّد ثم يُجمّع — لا بالسعر الحالي
+  const caRemainingSyp = acc.deferredInvoices.reduce((s, inv) => s + invoiceBalance(inv).remaining * invRate(inv), 0);
+  document.getElementById('ca-remaining-old').textContent = fmtOld(caRemainingSyp);
 
   // رصيد إضافي للزبون (فائض الدفعات فوق كل الفواتير) — يظهر فقط عند وجوده
   const creditRow = document.getElementById('ca-credit-row');
@@ -3007,11 +3025,11 @@ function openCustomerAccount(customerName) {
           ? '<br><span style="font-size:10px;color:#16a34a;font-weight:700">💳 خُصم ' + fmtUSD(inv.creditApplied) + ' من الرصيد الإضافي</span>'
           : '';
         return '<tr onclick="openInvoiceDetail(\'' + inv.number + '\')" style="cursor:pointer">' +
-          '<td><span class="inv-num">' + inv.number + '</span></td>' +
+          '<td><span class="inv-num">' + inv.number + '</span> ' + invCurrencyBadge(inv) + '</td>' +
           '<td>' + inv.date + '</td>' +
           '<td>' + tag + creditNote + '</td>' +
-          '<td><strong>' + fmtUSD(inv.total) + '</strong></td>' +
-          '<td style="color:' + (rem>0?'#dc2626':'#16a34a') + ';font-weight:700">' + (isDeferred ? fmtUSD(rem) : '—') + '</td>' +
+          '<td><strong>' + fmtInv(inv, inv.total) + '</strong><br><span style="font-size:10px;color:var(--text-muted)">' + fmtInvEquiv(inv, inv.total) + '</span></td>' +
+          '<td style="color:' + (rem>0?'#dc2626':'#16a34a') + ';font-weight:700">' + (isDeferred ? fmtInv(inv, rem) : '—') + '</td>' +
           '</tr>';
       }).join('');
 
@@ -3240,7 +3258,9 @@ function openSupplierAccount(supplierName) {
   const remEl = document.getElementById('sa-remaining');
   remEl.textContent = fmtUSD(acc.remaining);
   remEl.style.color = acc.remaining > 0 ? 'var(--red-600)' : 'var(--green-700)';
-  document.getElementById('sa-remaining-old').textContent = fmtOld(usdToOld(acc.remaining));
+  // المعادل بالليرة يُحسب لكل فاتورة بسعرها المجمَّد ثم يُجمّع — لا بالسعر الحالي
+  const saRemainingSyp = acc.deferredInvoices.reduce((s, inv) => s + invoiceBalance(inv).remaining * invRate(inv), 0);
+  document.getElementById('sa-remaining-old').textContent = fmtOld(saRemainingSyp);
 
   // رصيد إضافي مستحق لنا من المورد (فائض الدفعات) — يظهر فقط عند وجوده
   const creditRow = document.getElementById('sa-credit-row');
@@ -3300,7 +3320,7 @@ function openSupplierAccount(supplierName) {
         return '<tr onclick="openInvoiceDetail(\'' + inv.number + '\')" style="cursor:pointer">' +
         '<td><span class="inv-num">' + inv.number + '</span></td>' +
         '<td>' + inv.date + '</td>' +
-        '<td><strong>' + fmtUSD(inv.total) + '</strong>' + creditNote + '</td>' +
+        '<td><strong>' + fmtInv(inv, inv.total) + '</strong> ' + invCurrencyBadge(inv) + '<br><span style="font-size:10px;color:var(--text-muted)">' + fmtInvEquiv(inv, inv.total) + '</span>' + creditNote + '</td>' +
         '</tr>';
       }).join('');
 
@@ -4480,10 +4500,15 @@ function openInvoiceDetail(number) {
   // Lines
   renderDetailLines(inv, isSale);
 
-  // Store current invoice ref
-  document.getElementById('invoice-detail-modal').dataset.number = number;
-  document.getElementById('invoice-detail-modal').dataset.type = isSale ? 'sale' : 'purchase';
-  document.getElementById('invoice-detail-modal').classList.remove('hidden');
+  // Store current invoice ref — مع عملة الفاتورة وسعرها المجمَّد ليُستخدما في العرض
+  const modalEl = document.getElementById('invoice-detail-modal');
+  modalEl.dataset.number = number;
+  modalEl.dataset.type = isSale ? 'sale' : 'purchase';
+  modalEl.dataset.currency = invCurrency(inv);
+  modalEl.dataset.rate = invRate(inv);
+  const curEl = document.getElementById('detail-currency');
+  if(curEl) curEl.textContent = '💱 ' + invCurrencyLabel(inv);
+  modalEl.classList.remove('hidden');
 }
 
 let detailLines = [];
@@ -4555,8 +4580,16 @@ function _calcDetailTotal(isSale) {
   const subtotal = detailLines.reduce((s,l)=>s+l.total,0);
   const discount = isSale ? (parseFloat(document.getElementById('detail-discount').value)||0) : 0;
   const total = subtotal * (1 - discount/100);
-  document.getElementById('detail-subtotal').textContent = new Intl.NumberFormat('ar-SY').format(subtotal);
-  document.getElementById('detail-total').textContent = new Intl.NumberFormat('ar-SY').format(total);
+  // العرض بعملة الفاتورة وسعرها المجمَّد (القيم داخلياً بالدولار)
+  const modalEl = document.getElementById('invoice-detail-modal');
+  const cur = modalEl && modalEl.dataset.currency === 'SYP' ? 'SYP' : 'USD';
+  const rate = parseFloat(modalEl && modalEl.dataset.rate) || getRate();
+  const fmtCur = (usd) => cur === 'SYP' ? fmtOld(usd * rate) : fmtUSD(usd);
+  const fmtEqv = (usd) => cur === 'SYP' ? fmtUSD(usd) : fmtOld(usd * rate);
+  document.getElementById('detail-subtotal').textContent = fmtCur(subtotal);
+  document.getElementById('detail-total').textContent = fmtCur(total);
+  const eqEl = document.getElementById('detail-total-equiv');
+  if(eqEl) eqEl.textContent = 'المعادل: ' + fmtEqv(total);
 }
 
 function saveInvoiceDetail() {
