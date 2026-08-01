@@ -3738,6 +3738,100 @@ function changePassword() {
 }
 
 // ============================================================
+// نسيت كلمة السر — نافذة مستقلة على شاشة الدخول
+// (لا تعتمد على عناصر صفحة الإعدادات)
+// ============================================================
+function forgotPasswordLogin() {
+  const savedEmail = (localStorage.getItem('app_recovery_email') || '').trim();
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:inherit;padding:24px;';
+  const close = () => { if (overlay.parentNode) document.body.removeChild(overlay); };
+
+  // قالب النافذة — هيدر كحلي متناسق مع باقي البرنامج
+  const shell = (bodyHtml) => `
+    <div style="background:#fff;border-radius:16px;width:380px;max-width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+      <div style="background:linear-gradient(135deg,var(--navy),var(--navy-2));padding:20px 24px;text-align:center;">
+        <div style="font-size:34px;margin-bottom:6px;">🔑</div>
+        <h3 style="margin:0;font-size:17px;font-weight:700;color:#fff;">استعادة كلمة السر</h3>
+      </div>
+      <div style="padding:24px;">${bodyHtml}</div>
+    </div>`;
+
+  // الخطوة 1 — التحقق من البريد
+  function renderEmailStep() {
+    // مستخدم قديم بلا بريد استعادة محفوظ
+    if (!savedEmail) {
+      overlay.innerHTML = shell(`
+        <p style="margin:0 0 18px;font-size:13.5px;color:#64748b;line-height:1.8;text-align:center;">
+          لا يوجد بريد استعادة محفوظ على هذا الجهاز.<br>
+          يرجى إضافة بريدك من <b>الإعدادات ← كلمة السر</b> أولاً لتفعيل الاستعادة.
+        </p>
+        <button id="fp-ok" style="width:100%;padding:11px;border-radius:10px;border:none;background:var(--navy);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">حسناً</button>`);
+      document.getElementById('fp-ok').onclick = close;
+      return;
+    }
+    overlay.innerHTML = shell(`
+      <p style="margin:0 0 16px;font-size:13.5px;color:#64748b;text-align:center;">أدخل بريدك الإلكتروني المسجّل للتحقق من هويتك</p>
+      <input id="fp-email" type="email" dir="ltr" placeholder="example@email.com"
+        style="width:100%;padding:11px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:14px;box-sizing:border-box;text-align:left;">
+      <div style="display:flex;gap:10px;">
+        <button id="fp-cancel" style="flex:1;padding:11px;border-radius:10px;border:1px solid #e2e8f0;background:#f8fafc;font-size:14px;cursor:pointer;font-family:inherit;">إلغاء</button>
+        <button id="fp-verify" style="flex:1;padding:11px;border-radius:10px;border:none;background:var(--navy);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">تحقق</button>
+      </div>`);
+    const emailInp = document.getElementById('fp-email');
+    emailInp.focus();
+    emailInp.onkeydown = (e) => { if (e.key === 'Enter') document.getElementById('fp-verify').click(); };
+    document.getElementById('fp-cancel').onclick = close;
+    document.getElementById('fp-verify').onclick = () => {
+      const val = (emailInp.value || '').trim().toLowerCase();
+      if (val !== savedEmail.toLowerCase()) {
+        showToast('❌ البريد الإلكتروني غير مطابق للبريد المسجّل', 'error');
+        emailInp.value = '';
+        emailInp.focus();
+        return;
+      }
+      renderPasswordStep();
+    };
+  }
+
+  // الخطوة 2 — تعيين كلمة سر جديدة
+  function renderPasswordStep() {
+    overlay.innerHTML = shell(`
+      <p style="margin:0 0 16px;font-size:13.5px;color:#16a34a;font-weight:600;text-align:center;">✅ تم التحقق — عيّن كلمة سر جديدة</p>
+      <input id="fp-new" type="password" placeholder="كلمة السر الجديدة (4 أحرف على الأقل)"
+        style="width:100%;padding:11px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:10px;box-sizing:border-box;text-align:right;">
+      <input id="fp-confirm" type="password" placeholder="تأكيد كلمة السر"
+        style="width:100%;padding:11px 14px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;margin-bottom:14px;box-sizing:border-box;text-align:right;">
+      <div style="display:flex;gap:10px;">
+        <button id="fp-cancel2" style="flex:1;padding:11px;border-radius:10px;border:1px solid #e2e8f0;background:#f8fafc;font-size:14px;cursor:pointer;font-family:inherit;">إلغاء</button>
+        <button id="fp-save" style="flex:1;padding:11px;border-radius:10px;border:none;background:var(--navy);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">حفظ</button>
+      </div>`);
+    const newInp = document.getElementById('fp-new');
+    const confirmInp = document.getElementById('fp-confirm');
+    newInp.focus();
+    confirmInp.onkeydown = (e) => { if (e.key === 'Enter') document.getElementById('fp-save').click(); };
+    document.getElementById('fp-cancel2').onclick = close;
+    document.getElementById('fp-save').onclick = () => {
+      const newPass = newInp.value;
+      const confirmPass = confirmInp.value;
+      if (!newPass || !confirmPass) { showToast('يرجى تعبئة جميع الحقول', 'error'); return; }
+      if (newPass.length < 4) { showToast('كلمة السر الجديدة يجب أن تكون 4 أحرف على الأقل', 'error'); return; }
+      if (newPass !== confirmPass) { showToast('كلمة السر الجديدة وتأكيدها غير متطابقتين', 'error'); return; }
+      // حفظ بنفس آلية app_password الحالية (base64)
+      const newHash = btoa(unescape(encodeURIComponent(newPass)));
+      localStorage.setItem('app_password', newHash);
+      close();
+      showToast('✅ تم تعيين كلمة سر جديدة بنجاح — يمكنك الدخول الآن', 'success');
+    };
+  }
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  document.body.appendChild(overlay);
+  renderEmailStep();
+}
+
+// ============================================================
 // SETUP SCREEN — يظهر مرة واحدة فقط
 // ============================================================
 function resetBusinessType() {
