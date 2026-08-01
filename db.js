@@ -71,6 +71,11 @@ function createTables() {
       value INTEGER DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS invoice_settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS items (
       id            TEXT PRIMARY KEY,
       name          TEXT,
@@ -359,6 +364,11 @@ function loadAll() {
   const exchange = {};
   exchRows.forEach(r => { exchange[r.key] = r.value; });
 
+  // إعدادات عامة للفواتير الآجلة (مهلة السداد الافتراضية...) — نفس نمط جدول exchange.
+  const invSettingRows = db.prepare('SELECT key, value FROM invoice_settings').all();
+  const invoiceSettings = {};
+  invSettingRows.forEach(r => { invoiceSettings[r.key] = r.value; });
+
   const cntRows = db.prepare('SELECT key, value FROM invoice_counters').all();
   const invoiceCounters = { sale: 0, purchase: 0, receipt: 0 };
   cntRows.forEach(r => { invoiceCounters[r.key] = r.value; });
@@ -409,7 +419,7 @@ function loadAll() {
   const creditLedger = db.prepare('SELECT * FROM credit_ledger ORDER BY date ASC, id ASC').all();
   const auditLog = db.prepare('SELECT * FROM audit_log ORDER BY ts DESC, id DESC').all();
 
-  return { company, exchange, invoiceCounters, items, customers, suppliers, books,
+  return { company, exchange, invoiceSettings, invoiceCounters, items, customers, suppliers, books,
            salesInvoices, purchaseInvoices, returns, customerPayments, supplierPayments,
            creditLedger, auditLog };
 }
@@ -429,6 +439,11 @@ function saveAll(data) {
     const upsertExch = db.prepare('INSERT OR REPLACE INTO exchange (key, value) VALUES (?, ?)');
     const ex = data.exchange || {};
     Object.entries(ex).forEach(([k, v]) => upsertExch.run(k, String(v)));
+
+    // إعدادات عامة للفواتير الآجلة
+    const upsertInvSettings = db.prepare('INSERT OR REPLACE INTO invoice_settings (key, value) VALUES (?, ?)');
+    const invSet = data.invoiceSettings || {};
+    Object.entries(invSet).forEach(([k, v]) => upsertInvSettings.run(k, String(v)));
 
     // invoice counters
     const upsertCnt = db.prepare('INSERT OR REPLACE INTO invoice_counters (key, value) VALUES (?, ?)');

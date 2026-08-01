@@ -146,6 +146,8 @@ const DEFAULT_ITEMS = [
 const defaultData = {
   company: { name:'شركتي', address:'', phone:'', email:'', slogan:'نشكر ثقتكم بنا' },
   exchange: { usdToOld: 12000, note: '1 دولار = X ل.س قديمة | 1 ل.س جديدة = 100 ل.س قديمة' },
+  // إعدادات عامة للفواتير الآجلة — paymentTermDays: مهلة السداد الافتراضية بالأيام.
+  invoiceSettings: { paymentTermDays: 30 },
   items: JSON.parse(JSON.stringify(DEFAULT_ITEMS)),
   customers: [],
   suppliers: [],
@@ -203,6 +205,7 @@ async function initDB() {
   // ضمان وجود كل الحقول
   if (!db.company)          db.company = JSON.parse(JSON.stringify(defaultData.company));
   if (!db.exchange)         db.exchange = JSON.parse(JSON.stringify(defaultData.exchange));
+  if (!db.invoiceSettings)  db.invoiceSettings = JSON.parse(JSON.stringify(defaultData.invoiceSettings));
   if (!db.invoiceCounters)  db.invoiceCounters = { sale:0, purchase:0, returnSale:0, returnPurchase:0, receipt:0 };
   if (!db.invoiceCounters.receipt) db.invoiceCounters.receipt = 0;
   if (!db.customers)        db.customers = [];
@@ -590,6 +593,12 @@ function getRate() {
 function usdToOld(usd) { return usd * getRate(); }
 // تحويل دولار → ل.س جديدة (حذف صفرين = قسمة 100)
 function usdToNew(usd) { return usd * getRate() / 100; }
+
+// مهلة السداد الافتراضية للفواتير الآجلة (بالأيام) المحفوظة بالإعدادات — قيمة احتياطية آمنة 30 يوماً.
+function defaultPaymentTermDays() {
+  const v = db.invoiceSettings ? parseInt(db.invoiceSettings.paymentTermDays, 10) : NaN;
+  return (v && v > 0) ? v : 30;
+}
 
 // ── عملة الفاتورة وسعر صرفها المجمَّد وقت الإنشاء ──
 // المبالغ تُخزَّن دائماً بالدولار كأساس محايد؛ العملة والسعر المجمَّد يحكمان العرض فقط.
@@ -1978,6 +1987,8 @@ function renderSettings() {
   const rate = db.exchange.usdToOld;
   document.getElementById('set-usd-rate').value = rate;
   updateRateDisplay(rate);
+  const termInp = document.getElementById('set-payment-term-days');
+  if (termInp) termInp.value = defaultPaymentTermDays();
   const recEmail = document.getElementById('set-recovery-email');
   if (recEmail) recEmail.value = localStorage.getItem('app_recovery_email') || '';
 }
@@ -2032,6 +2043,9 @@ function saveSettings() {
   db.company.slogan = document.getElementById('set-slogan').value;
   if(!db.exchange) db.exchange = { usdToOld: 12000 };
   db.exchange.usdToOld = parseFloat(document.getElementById('set-usd-rate').value) || 12000;
+  if(!db.invoiceSettings) db.invoiceSettings = { paymentTermDays: 30 };
+  const termVal = parseInt(document.getElementById('set-payment-term-days')?.value, 10);
+  db.invoiceSettings.paymentTermDays = (termVal > 0) ? termVal : 30;
   saveData(db);
   const hdr = document.getElementById('company-name-header');
   if (hdr) hdr.value = db.company.name;

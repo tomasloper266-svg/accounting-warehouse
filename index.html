@@ -1495,6 +1495,24 @@
             </div>
           </div>
 
+          <!-- بطاقة: مهلة السداد الافتراضية (فواتير آجلة) -->
+          <div style="background:var(--surface-primary);border-radius:16px;border:1px solid var(--border-subtle);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px;background:var(--surface-secondary)">
+              <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#0ea5e9,#0369a1);display:flex;align-items:center;justify-content:center;font-size:15px">⏰</div>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text-primary)">مهلة السداد الافتراضية</div>
+                <div style="font-size:11px;color:var(--text-muted)">للفواتير الآجلة — بالأيام</div>
+              </div>
+            </div>
+            <div style="padding:16px 18px">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">عدد الأيام قبل اعتبار الفاتورة متأخرة</label>
+                <input id="set-payment-term-days" class="input" type="number" placeholder="30" min="1" step="1">
+                <div style="font-size:10px;color:var(--text-muted);margin-top:6px">فاتورة آجلة لم تُسدّد بالكامل وتجاوزت هذه المهلة تظهر في «كشف الفواتير المتأخرة» ضمن الكشوفات. تُحفظ مع زر «حفظ الإعدادات» أعلاه.</div>
+              </div>
+            </div>
+          </div>
+
           <!-- بطاقة: كلمة السر -->
           <div style="background:var(--surface-primary);border-radius:16px;border:1px solid var(--border-subtle);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
             <div style="padding:14px 18px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:10px;background:var(--surface-secondary)">
