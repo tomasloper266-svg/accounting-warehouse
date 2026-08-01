@@ -3680,6 +3680,11 @@ function togglePassField(fieldId, btn) {
   }
 }
 
+// التحقق من صيغة البريد الإلكتروني (validation بسيط)
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
 function changePassword() {
   const currentPass = document.getElementById('pass-current').value;
   const newPass = document.getElementById('pass-new').value;
@@ -3765,12 +3770,25 @@ function checkSetup() {
 function showSetupScreen() {
   const overlay = document.getElementById('setup-screen');
   if (overlay) {
+    // إعادة تعبئة بريد الاستعادة إن كان محفوظاً (مثلاً عند إعادة اختيار النشاط)
+    const emailInp = document.getElementById('setup-recovery-email');
+    if (emailInp) emailInp.value = localStorage.getItem('app_recovery_email') || '';
     overlay.classList.remove('hidden');
     overlay.style.display = 'flex';
   }
 }
 
 function selectBusiness(type) {
+  // بريد الاستعادة إلزامي عند أول تثبيت — تحقق قبل المتابعة
+  const emailInp = document.getElementById('setup-recovery-email');
+  const email = (emailInp ? emailInp.value : '').trim();
+  if (!isValidEmail(email)) {
+    showToast('⚠️ أدخل بريداً إلكترونياً صحيحاً للمتابعة', 'error');
+    if (emailInp) emailInp.focus();
+    return;
+  }
+  localStorage.setItem('app_recovery_email', email);
+
   // حفظ الاختيار
   localStorage.setItem('business_type', type);
 
