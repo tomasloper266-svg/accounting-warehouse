@@ -2558,7 +2558,11 @@ function renderDailyReport() {
   setText('daily-returns-count', returns.length + ' مرتجع');
 
   setText('daily-net-profit', fmtUSD(netProfit));
-  setText('daily-net-profit-old', fmtOld(usdToOld(netProfit)));
+  // المعادل بالليرة يُحسب بسعر صرف كل فاتورة المجمَّد (لا بسعر اليوم) — اتساقاً مع صفحة التقارير
+  const salesProfitSYP   = sales.reduce((s, inv) => s + (((inv.total || 0) - saleLinesCOGS(inv.lines)) * invRate(inv)), 0);
+  const returnsProfitSYP = salesReturns.reduce((s, r) => s + (((r.total || 0) - saleLinesCOGS(r.lines)) * invRate(r)), 0);
+  const netProfitSYP     = salesProfitSYP - returnsProfitSYP;
+  setText('daily-net-profit-old', fmtOld(netProfitSYP));
   const profitCard = document.getElementById('daily-profit-card');
   if (profitCard) {
     profitCard.style.background = netProfit >= 0
