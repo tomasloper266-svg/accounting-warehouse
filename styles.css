@@ -1201,6 +1201,7 @@ html.dark .receipt-balance-green { background: rgba(34,197,94,.08); border-color
 .hero-purple { background: linear-gradient(135deg,#3b0764 0%,var(--purple-700) 55%,var(--purple-500) 100%); box-shadow: 0 8px 32px rgba(139,92,246,.28); }
 .hero-orange { background: linear-gradient(135deg,#7c2d12 0%,var(--orange-700) 55%,var(--orange-500) 100%); box-shadow: 0 8px 32px rgba(249,115,22,.28); }
 .hero-teal   { background: linear-gradient(135deg,#134e4a 0%,var(--teal-700) 55%,var(--teal-500) 100%); box-shadow: 0 8px 32px rgba(20,184,166,.28); }
+.hero-navy   { background: linear-gradient(180deg,var(--navy) 0%,var(--navy-2) 100%); box-shadow: 0 8px 32px rgba(13,20,68,.4); }
 
 /* ══════════════════════════════════════════
    20. TOOLBAR / SEARCH
