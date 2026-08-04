@@ -2436,6 +2436,9 @@ function renderReports() {
   }
 
 
+  // خزّن بيانات التقرير المعروضة حالياً (بعد الفلاتر/الفترة) ليطابقها التصدير
+  currentReport = { sales, purchases, marginRows, repCur };
+
   updateReportTitle(filterType, filterMonth, filterYear);
 }
 
@@ -2491,6 +2494,7 @@ function printReport() {
   tbody tr:nth-child(even) { background:#f8fafc; }
   h3 { font-size:14px; color:#1F3864; margin:16px 0 8px; }
   .footer { text-align:center; font-size:11px; color:#94a3b8; margin-top:24px; border-top:1px solid #e2e8f0; padding-top:8px; }
+  .no-print { display:none !important; }
   @media print { body { padding:10px; } }
 </style>
 </head>
@@ -6804,6 +6808,49 @@ function exportAccountStatement() {
   });
   downloadCSV(`كشف_حساب_${safeFileName(name)}_${todayStamp()}`, headers, rows);
   showToast('تم تصدير كشف الحساب', 'success');
+}
+
+// آخر تقرير مُرندر — يُضبط في renderReports ليطابق التصدير الجداول المعروضة.
+let currentReport = null;
+
+// تصدير جدول فواتير البيع (تقرير المبيعات) المعروض حالياً إلى Excel (CSV).
+function exportSalesReport() {
+  const sales = currentReport && currentReport.sales;
+  if (!sales || sales.length === 0) {
+    showToast('لا توجد مبيعات في هذه الفترة للتصدير', 'error');
+    return;
+  }
+  const headers = ['رقم الفاتورة', 'الزبون', 'التاريخ', 'الخصم %', 'نوع الدفع', 'الإجمالي'];
+  const rows = sales.map(inv => [
+    inv.number || '',
+    inv.customerName || '',
+    inv.date || '',
+    (parseFloat(inv.discount) || 0).toString(),
+    (inv.paymentType || 'cash') === 'deferred' ? 'آجل' : 'نقداً',
+    csvNum(inv.total)
+  ]);
+  downloadCSV(`تقرير_المبيعات_${todayStamp()}`, headers, rows);
+  showToast('تم تصدير تقرير المبيعات', 'success');
+}
+
+// تصدير جدول هامش الربح الحقيقي لكل صنف (تقرير الأرباح) المعروض حالياً.
+function exportProfitReport() {
+  const marginRows = currentReport && currentReport.marginRows;
+  if (!marginRows || marginRows.length === 0) {
+    showToast('لا توجد أرباح في هذه الفترة للتصدير', 'error');
+    return;
+  }
+  const headers = ['اسم الصنف', 'الكمية المباعة', 'إجمالي المبيعات', 'إجمالي التكلفة', 'صافي الربح', 'نسبة الربح %'];
+  const rows = marginRows.map(r => [
+    r.name || '',
+    `${r.qty}${r.unit ? ' ' + r.unit : ''}`,
+    csvNum(r.revenue),
+    csvNum(r.cost),
+    csvNum(r.profit),
+    (parseFloat(r.marginPct) || 0).toFixed(1)
+  ]);
+  downloadCSV(`تقرير_الأرباح_${todayStamp()}`, headers, rows);
+  showToast('تم تصدير تقرير الأرباح', 'success');
 }
 
 

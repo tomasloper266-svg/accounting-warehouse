@@ -950,9 +950,13 @@
             <div class="page-title">📊 التقارير</div>
             <div class="page-subtitle" id="report-title">تقرير شهري</div>
           </div>
-          <button class="btn btn-primary btn-lg" onclick="printReport()" style="gap:8px">
-            🖨️ طباعة التقرير
-          </button>
+          <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-lg" onclick="exportSalesReport()" style="gap:6px">⬇ تصدير المبيعات</button>
+            <button class="btn btn-secondary btn-lg" onclick="exportProfitReport()" style="gap:6px">⬇ تصدير الأرباح</button>
+            <button class="btn btn-primary btn-lg" onclick="printReport()" style="gap:8px">
+              🖨️ طباعة التقرير
+            </button>
+          </div>
         </div>
 
         <!-- شريط الفلاتر -->
