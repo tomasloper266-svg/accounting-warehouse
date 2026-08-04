@@ -1608,16 +1608,13 @@ function renderPurchaseRecentInvoices() {
   const searchVal = (document.getElementById('pur-invoices-search') ? document.getElementById('pur-invoices-search').value : '').toLowerCase().trim();
   const all = activePurchaseInvoices().sort((a,b)=>new Date(b.date)-new Date(a.date));
   const purPayFilter = document.getElementById('pur-pay-filter') ? document.getElementById('pur-pay-filter').value : 'all';
-  const filtered = all.filter(inv => {
-    const matchSearch = !searchVal ||
-      (inv.number||'').toLowerCase().includes(searchVal) ||
-      (inv.supplierName||'').toLowerCase().includes(searchVal);
-    const pt = inv.paymentType || 'cash';
-    const matchPay = purPayFilter === 'all' ||
-      (purPayFilter === 'deferred' && pt === 'deferred') ||
-      (purPayFilter === 'cash' && pt !== 'deferred');
-    return matchSearch && matchPay;
-  });
+  const filtered = all.filter(inv => invoicePassesFilters(inv, {
+    searchVal,
+    payFilter: purPayFilter,
+    statusFilter: document.getElementById('pur-status-filter') ? document.getElementById('pur-status-filter').value : 'all',
+    dateFrom: document.getElementById('pur-date-from') ? document.getElementById('pur-date-from').value : '',
+    dateTo:   document.getElementById('pur-date-to')   ? document.getElementById('pur-date-to').value   : '',
+  }));
   const countEl = document.getElementById('pur-invoices-count');
   if(countEl) countEl.textContent = filtered.length + ' فاتورة';
   if(filtered.length === 0) {

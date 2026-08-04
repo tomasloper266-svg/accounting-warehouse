@@ -818,6 +818,20 @@
               <option value="deferred">⏳ آجلة فقط</option>
               <option value="cash">💵 نقدية فقط</option>
             </select>
+            <select id="pur-status-filter" class="input input-sm" onchange="renderPurchaseRecentInvoices()" style="width:130px;">
+              <option value="all">💳 كل الحالات</option>
+              <option value="paid">✅ مسددة</option>
+              <option value="partial">⏳ جزئي</option>
+              <option value="overdue">⚠️ متأخرة</option>
+            </select>
+            <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted);">
+              من
+              <input type="date" id="pur-date-from" class="input input-sm" title="من تاريخ"
+                onchange="renderPurchaseRecentInvoices()" style="width:140px;">
+              إلى
+              <input type="date" id="pur-date-to" class="input input-sm" title="إلى تاريخ"
+                onchange="renderPurchaseRecentInvoices()" style="width:140px;">
+            </span>
             <input type="text" id="pur-invoices-search" class="input input-sm"
               placeholder="🔍 بحث برقم الفاتورة أو اسم المورد..."
               oninput="renderPurchaseRecentInvoices()"
