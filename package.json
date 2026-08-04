@@ -30,6 +30,7 @@
       "styles.css",
       "theme.js",
       "logo.png",
+      "vendor/**/*",
       "node_modules/**/*",
       "!src/**/*",
       "!dist/**/*",

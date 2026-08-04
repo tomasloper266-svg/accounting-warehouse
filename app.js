@@ -6461,6 +6461,7 @@ function loadAccountStatement() {
     <!-- شريط أدوات الكشف -->
     <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
       <button class="btn btn-secondary" onclick="exportAccountStatement()" style="gap:6px">⬇ تصدير Excel</button>
+      <button class="btn btn-secondary" onclick="exportAccountStatementPDF()" style="gap:6px;margin-right:8px">📄 تصدير PDF</button>
     </div>
 
     <!-- ملخص -->
@@ -6763,6 +6764,126 @@ function downloadCSV(filename, headers, rows) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// ============================================================
+// تصدير PDF فعلي (ملف PDF منسّق) — يعمل من طرف العميل بالكامل بلا سيرفر.
+// الأسلوب: نبني جدولاً منسّقاً بالـHTML (المتصفح يشكّل العربية RTL بشكل صحيح)،
+// نلتقطه كصورة عبر html2canvas، ثم نضعه في مستند jsPDF ونقسّمه على صفحات A4.
+// هذا يضمن قابلية قراءة العربية دون تضمين خط أو تشكيل يدوي، ويعكس نفس
+// البيانات المفلترة المعروضة على الشاشة (نفس مصدر بيانات تصدير Excel تماماً).
+// ============================================================
+
+// تهريب HTML لمنع كسر بنية الجدول عند إدراج بيانات المستخدم.
+function pdfEsc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// يبني عنصر جدول منسّقاً خارج الشاشة جاهزاً للالتقاط كصورة.
+function buildPdfTableElement(title, subtitle, headers, rows) {
+  const el = document.createElement('div');
+  el.style.cssText =
+    'position:fixed;left:-99999px;top:0;width:1100px;background:#ffffff;padding:28px;' +
+    'direction:rtl;font-family:"Segoe UI","Tahoma","Arial",sans-serif;color:#111827;box-sizing:border-box';
+  const th = headers.map(h =>
+    `<th style="background:#1d4ed8;color:#fff;padding:9px 8px;font-size:13px;font-weight:700;border:1px solid #1e40af;text-align:center">${pdfEsc(h)}</th>`
+  ).join('');
+  const body = rows.map((r, i) => {
+    const bg = i % 2 ? '#f1f5f9' : '#ffffff';
+    const tds = r.map(c =>
+      `<td style="padding:7px 8px;font-size:12px;border:1px solid #cbd5e1;text-align:center;background:${bg}">${pdfEsc(c)}</td>`
+    ).join('');
+    return `<tr>${tds}</tr>`;
+  }).join('');
+  el.innerHTML =
+    `<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px;border-bottom:3px solid #1d4ed8;padding-bottom:12px">
+       <div>
+         <div style="font-size:22px;font-weight:800;color:#1d4ed8">${pdfEsc(title)}</div>
+         ${subtitle ? `<div style="font-size:14px;color:#475569;margin-top:4px">${pdfEsc(subtitle)}</div>` : ''}
+       </div>
+       <div style="font-size:12px;color:#64748b">تاريخ التصدير: ${pdfEsc(new Date().toLocaleDateString('ar'))}</div>
+     </div>
+     <table style="width:100%;border-collapse:collapse;table-layout:auto;word-break:break-word">
+       <thead><tr>${th}</tr></thead>
+       <tbody>${body}</tbody>
+     </table>`;
+  return el;
+}
+
+// يلتقط العنصر ويولّد PDF متعدّد الصفحات (A4) وينزّله. يعيد true عند النجاح.
+async function downloadTablePDF(filename, title, subtitle, headers, rows, opts = {}) {
+  if (!window.jspdf || !window.html2canvas) {
+    showToast('تعذّر تحميل مكتبة PDF', 'error');
+    return false;
+  }
+  const orientation = opts.orientation || 'landscape';
+  const el = buildPdfTableElement(title, subtitle, headers, rows);
+  document.body.appendChild(el);
+  try {
+    const canvas = await window.html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation, unit: 'pt', format: 'a4' });
+    const margin = 24;
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW - margin * 2;
+    const pxPerPt = canvas.width / imgW;                 // بكسل مصدر لكل نقطة PDF
+    const usableHpx = (pageH - margin * 2) * pxPerPt;    // ارتفاع صفحة واحدة بالبكسل
+    let offsetPx = 0, page = 0;
+    while (offsetPx < canvas.height) {
+      const sliceHpx = Math.min(usableHpx, canvas.height - offsetPx);
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = sliceHpx;
+      const ctx = slice.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, offsetPx, canvas.width, sliceHpx, 0, 0, canvas.width, sliceHpx);
+      if (page > 0) pdf.addPage();
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, imgW, sliceHpx / pxPerPt);
+      offsetPx += sliceHpx;
+      page++;
+    }
+    pdf.save(filename.endsWith('.pdf') ? filename : filename + '.pdf');
+    return true;
+  } catch (e) {
+    console.error('PDF export failed:', e);
+    showToast('فشل توليد ملف PDF', 'error');
+    return false;
+  } finally {
+    if (el.parentNode) el.parentNode.removeChild(el);
+  }
+}
+
+// تصدير كشف الحساب المعروض حالياً إلى PDF — نفس أعمدة ومنطق تصدير Excel.
+async function exportAccountStatementPDF() {
+  if (!currentStatement || !currentStatement.name) {
+    showToast('اعرض كشف حساب أولاً', 'error');
+    return;
+  }
+  const { name, invoices, payments } = currentStatement;
+  if (!invoices || invoices.length === 0) {
+    showToast('لا توجد فواتير للتصدير', 'error');
+    return;
+  }
+  const headers = ['رقم الفاتورة', 'التاريخ', 'الإجمالي', 'المدفوع', 'المتبقي', 'وصف الدفعات'];
+  const rows = invoices.map(inv => {
+    const bal = invoiceBalance(inv);
+    return [
+      inv.number || '',
+      inv.date || '',
+      csvNum(bal.total),
+      csvNum(bal.paid),
+      csvNum(bal.remaining),
+      paymentsDescForInvoice(inv, payments)
+    ];
+  });
+  const ok = await downloadTablePDF(
+    `كشف_حساب_${safeFileName(name)}_${todayStamp()}`,
+    `كشف حساب: ${name}`, '', headers, rows, { orientation: 'landscape' }
+  );
+  if (ok) showToast('تم تصدير كشف الحساب PDF', 'success');
+}
+
 // آخر كشف حساب مُحمّل — يُضبط في loadAccountStatement ليطابق التصدير ما يُعرض تماماً.
 let currentStatement = null;
 
@@ -6851,6 +6972,57 @@ function exportProfitReport() {
   ]);
   downloadCSV(`تقرير_الأرباح_${todayStamp()}`, headers, rows);
   showToast('تم تصدير تقرير الأرباح', 'success');
+}
+
+// عنوان الفترة المعروض حالياً (مثل: تقرير شهري — ...) ليظهر كعنوان فرعي في الـPDF.
+function currentReportPeriodLabel() {
+  return (document.getElementById('report-title')?.textContent || '').trim();
+}
+
+// تصدير جدول تقرير المبيعات المعروض حالياً إلى PDF — نفس أعمدة ومنطق Excel.
+async function exportSalesReportPDF() {
+  const sales = currentReport && currentReport.sales;
+  if (!sales || sales.length === 0) {
+    showToast('لا توجد مبيعات في هذه الفترة للتصدير', 'error');
+    return;
+  }
+  const headers = ['رقم الفاتورة', 'الزبون', 'التاريخ', 'الخصم %', 'نوع الدفع', 'الإجمالي'];
+  const rows = sales.map(inv => [
+    inv.number || '',
+    inv.customerName || '',
+    inv.date || '',
+    (parseFloat(inv.discount) || 0).toString(),
+    (inv.paymentType || 'cash') === 'deferred' ? 'آجل' : 'نقداً',
+    csvNum(inv.total)
+  ]);
+  const ok = await downloadTablePDF(
+    `تقرير_المبيعات_${todayStamp()}`,
+    'تقرير المبيعات', currentReportPeriodLabel(), headers, rows, { orientation: 'landscape' }
+  );
+  if (ok) showToast('تم تصدير تقرير المبيعات PDF', 'success');
+}
+
+// تصدير جدول هامش الربح لكل صنف المعروض حالياً إلى PDF — نفس أعمدة ومنطق Excel.
+async function exportProfitReportPDF() {
+  const marginRows = currentReport && currentReport.marginRows;
+  if (!marginRows || marginRows.length === 0) {
+    showToast('لا توجد أرباح في هذه الفترة للتصدير', 'error');
+    return;
+  }
+  const headers = ['اسم الصنف', 'الكمية المباعة', 'إجمالي المبيعات', 'إجمالي التكلفة', 'صافي الربح', 'نسبة الربح %'];
+  const rows = marginRows.map(r => [
+    r.name || '',
+    `${r.qty}${r.unit ? ' ' + r.unit : ''}`,
+    csvNum(r.revenue),
+    csvNum(r.cost),
+    csvNum(r.profit),
+    (parseFloat(r.marginPct) || 0).toFixed(1)
+  ]);
+  const ok = await downloadTablePDF(
+    `تقرير_الأرباح_${todayStamp()}`,
+    'تقرير هامش الربح لكل صنف', currentReportPeriodLabel(), headers, rows, { orientation: 'landscape' }
+  );
+  if (ok) showToast('تم تصدير تقرير الأرباح PDF', 'success');
 }
 
 
