@@ -6450,7 +6450,15 @@ function loadAccountStatement() {
   const el = document.getElementById('stmt-account-result');
   if (!el) return;
 
+  // خزّن سياق الكشف المعروض حالياً ليطابق التصدير ما على الشاشة تماماً
+  currentStatement = { name, type, invoices, payments };
+
   el.innerHTML = `
+    <!-- شريط أدوات الكشف -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button class="btn btn-secondary" onclick="exportAccountStatement()" style="gap:6px">⬇ تصدير Excel</button>
+    </div>
+
     <!-- ملخص -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
       <div style="background:#eff6ff;border-radius:12px;padding:14px;text-align:center">
@@ -6708,6 +6716,96 @@ function renderStatementsHub() {}
 function paymentMethodLabel(method) {
   return {cash:'نقداً', cheque:'شيك', transfer:'حوالة'}[method] || 'نقداً';
 }
+
+// ============================================================
+// تصدير البيانات — Excel (CSV بترميز UTF-8 مع BOM) قابل للفتح مباشرة في Excel
+// مع دعم كامل للعربية. يعكس البيانات المفلترة الظاهرة على الشاشة فقط.
+// ============================================================
+
+// تهريب حقل CSV: يلفّه باقتباس مزدوج ويضاعف أي اقتباس داخلي.
+function csvCell(val) {
+  const s = (val == null ? '' : String(val)).replace(/"/g, '""');
+  return `"${s}"`;
+}
+
+// رقم بخانتين عشريتين كنص عددي صرف (بلا رمز عملة) ليحسبه Excel.
+function csvNum(n) {
+  const v = parseFloat(n);
+  return isNaN(v) ? '0.00' : v.toFixed(2);
+}
+
+// اسم ملف آمن: يستبدل المحارف الممنوعة والمسافات بشرطة سفلية.
+function safeFileName(s) {
+  return String(s == null ? '' : s).trim().replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_') || 'export';
+}
+
+// تاريخ اليوم YYYY-MM-DD لاسم الملف.
+function todayStamp() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// يبني CSV من عناوين + صفوف وينزّله. \uFEFF (BOM) ضروري لعرض العربية في Excel.
+function downloadCSV(filename, headers, rows) {
+  const lines = [headers, ...rows].map(r => r.map(csvCell).join(','));
+  const csv = '\uFEFF' + lines.join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.csv') ? filename : filename + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// آخر كشف حساب مُحمّل — يُضبط في loadAccountStatement ليطابق التصدير ما يُعرض تماماً.
+let currentStatement = null;
+
+// وصف دفعات فاتورة واحدة (نصّي، مشتق من بيانات حقيقية — لا يُحتسب مالياً).
+function paymentsDescForInvoice(inv, payments) {
+  if ((inv.paymentType || 'cash') !== 'deferred') return 'نقداً — مسدّدة بالكامل';
+  const parts = [];
+  const deposit = parseFloat(inv.paidAmount) || 0;
+  if (deposit > 0) parts.push(`وديعة عند الإنشاء: ${deposit.toFixed(2)}`);
+  (payments || [])
+    .filter(p => p.linkedInvoice === inv.number && !isAutoDepositRecord(p))
+    .forEach(p => {
+      const amt = (parseFloat(p.amount) || 0).toFixed(2);
+      const note = p.note || p.description || '';
+      parts.push(`${p.date || ''}: ${amt}${note ? ' (' + note + ')' : ''}`);
+    });
+  return parts.length ? parts.join(' | ') : 'آجل — لا دفعات مسجّلة';
+}
+
+// تصدير كشف الحساب المعروض حالياً إلى Excel (CSV).
+// الأعمدة: رقم الفاتورة، التاريخ، الإجمالي، المدفوع، المتبقي، وصف الدفعات.
+function exportAccountStatement() {
+  if (!currentStatement || !currentStatement.name) {
+    showToast('اعرض كشف حساب أولاً', 'error');
+    return;
+  }
+  const { name, invoices, payments } = currentStatement;
+  if (!invoices || invoices.length === 0) {
+    showToast('لا توجد فواتير للتصدير', 'error');
+    return;
+  }
+  const headers = ['رقم الفاتورة', 'التاريخ', 'الإجمالي', 'المدفوع', 'المتبقي', 'وصف الدفعات'];
+  const rows = invoices.map(inv => {
+    const bal = invoiceBalance(inv);
+    return [
+      inv.number || '',
+      inv.date || '',
+      csvNum(bal.total),
+      csvNum(bal.paid),
+      csvNum(bal.remaining),
+      paymentsDescForInvoice(inv, payments)
+    ];
+  });
+  downloadCSV(`كشف_حساب_${safeFileName(name)}_${todayStamp()}`, headers, rows);
+  showToast('تم تصدير كشف الحساب', 'success');
+}
+
 
 // كشف فواتير — دمج فواتير البيع والشراء في جدول واحد
 function renderInvoicesStatement() {
