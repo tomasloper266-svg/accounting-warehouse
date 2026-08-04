@@ -960,22 +960,48 @@ function renderSaleStats() {
   if(el4) el4.textContent = stats.salesCount + ' فاتورة';
 }
 
+// فلترة موحّدة لسجل الفواتير: بحث نصي + نوع الدفع + حالة السداد + مدى التاريخ.
+// منطق AND بين كل الشروط الفعّالة — كل شرط فارغ/‏'all' يُعدّ محقّقاً تلقائياً.
+function invoicePassesFilters(inv, f) {
+  const searchVal = f.searchVal || '';
+  const name = (inv.customerName || inv.supplierName || '').toLowerCase();
+  const matchSearch = !searchVal ||
+    (inv.number || '').toLowerCase().includes(searchVal) ||
+    name.includes(searchVal);
+
+  const pt = inv.paymentType || 'cash';
+  const matchPay = !f.payFilter || f.payFilter === 'all' ||
+    (f.payFilter === 'deferred' && pt === 'deferred') ||
+    (f.payFilter === 'cash' && pt !== 'deferred');
+
+  let matchStatus = true;
+  if (f.statusFilter && f.statusFilter !== 'all') {
+    const bal = invoiceBalance(inv);
+    if (f.statusFilter === 'paid')         matchStatus = bal.closed;
+    else if (f.statusFilter === 'partial') matchStatus = bal.status === 'partial';
+    else if (f.statusFilter === 'overdue') matchStatus = computeOverdueInfo(inv.date, bal.remaining, defaultPaymentTermDays()).isOverdue;
+  }
+
+  const d = inv.date || '';
+  const matchFrom = !f.dateFrom || (d && d >= f.dateFrom);
+  const matchTo   = !f.dateTo   || (d && d <= f.dateTo);
+
+  return matchSearch && matchPay && matchStatus && matchFrom && matchTo;
+}
+
 function renderSaleRecentInvoices() {
   const el = document.getElementById('sale-recent-invoices');
   if(!el) return;
   const searchVal = (document.getElementById('sale-invoices-search') ? document.getElementById('sale-invoices-search').value : '').toLowerCase().trim();
   const all = activeSalesInvoices().sort((a,b)=>new Date(b.date)-new Date(a.date));
   const salePayFilter = document.getElementById('sale-pay-filter') ? document.getElementById('sale-pay-filter').value : 'all';
-  const filtered = all.filter(inv => {
-    const matchSearch = !searchVal ||
-      (inv.number||'').toLowerCase().includes(searchVal) ||
-      (inv.customerName||'').toLowerCase().includes(searchVal);
-    const pt = inv.paymentType || 'cash';
-    const matchPay = salePayFilter === 'all' ||
-      (salePayFilter === 'deferred' && pt === 'deferred') ||
-      (salePayFilter === 'cash' && pt !== 'deferred');
-    return matchSearch && matchPay;
-  });
+  const filtered = all.filter(inv => invoicePassesFilters(inv, {
+    searchVal,
+    payFilter: salePayFilter,
+    statusFilter: document.getElementById('sale-status-filter') ? document.getElementById('sale-status-filter').value : 'all',
+    dateFrom: document.getElementById('sale-date-from') ? document.getElementById('sale-date-from').value : '',
+    dateTo:   document.getElementById('sale-date-to')   ? document.getElementById('sale-date-to').value   : '',
+  }));
   const countEl = document.getElementById('sale-invoices-count');
   if(countEl) countEl.textContent = filtered.length + ' فاتورة';
   if(filtered.length === 0) {
