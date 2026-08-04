@@ -1734,7 +1734,7 @@ function renderItems() {
     const isLow = stock < item.minStock;
     const isDefault = DEFAULT_ITEMS.find(d=>d.id===item.id);
     const barcodeIcon = item.barcode
-      ? `<span title="${item.barcode}" style="cursor:default;font-size:14px;">📊</span>`
+      ? `<span title="${item.barcode}" style="font-family:monospace;font-size:12px;">📊 ${item.barcode}</span>`
       : `<span style="color:var(--text-muted);font-size:11px;">—</span>`;
     return `<tr class="${isLow?'row-warning':''}">
       <td><span class="item-id">${item.id}</span></td>
@@ -1815,6 +1815,15 @@ function saveItemModal() {
   const id = document.getElementById('modal-item-id').value;
   const item = db.items.find(i=>i.id===id);
   if(!item) return;
+  // منع تكرار الباركود — الباركود اختياري لكن يجب أن يكون فريداً بين المواد لضمان مسح دقيق
+  const _newBarcode = document.getElementById('modal-item-barcode').value.trim();
+  if (_newBarcode) {
+    const dup = db.items.find(i => i.id !== id && (i.barcode || '').trim() === _newBarcode);
+    if (dup) {
+      showToast('باركود مكرر — مستخدم في المادة: ' + dup.name, 'error');
+      return;
+    }
+  }
   const _oldPrice = parseFloat(item.price) || 0; // سعر البيع قبل التعديل (للتدقيق)
   item.name = document.getElementById('modal-item-name').value;
   item.type = document.getElementById('modal-item-type').value;
