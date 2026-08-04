@@ -4756,19 +4756,33 @@ function closeDetailModal() {
 // ============================================================
 function handleBarcodeScan(page, value) {
   const code = value.trim();
-  if (!code) return;
+  const el = document.getElementById(page + '-barcode-input');
+  if (!code) { if (el) el.focus(); return; }
 
-  // بحث بالباركود أولاً، ثم بالاسم، ثم بالكود
+  // مطابقة دقيقة بالباركود (أساسي ثم ثانوي) ثم كود المادة.
+  // في فاتورة البيع نقتصر على الباركود/الكود لتفادي إضافة صنف خاطئ عند مسح باركود غير مسجل.
   let item = db.items.find(it => it.barcode && it.barcode === code)
           || db.items.find(it => it.barcode2 && it.barcode2 === code)
-          || db.items.find(it => it.id && it.id.toLowerCase() === code.toLowerCase())
-          || db.items.find(it => it.name && it.name.toLowerCase().includes(code.toLowerCase()));
+          || db.items.find(it => it.id && it.id.toLowerCase() === code.toLowerCase());
+  // بحث سريع بالاسم — متاح في شريط الشراء فقط (يُستخدم كبحث سريع)
+  if (!item && page !== 'sale') {
+    item = db.items.find(it => it.name && it.name.toLowerCase().includes(code.toLowerCase()));
+  }
 
-  const el = document.getElementById(page + '-barcode-input');
+  // تفريغ الحقل فوراً والحفاظ على التركيز ليكون جاهزاً للمسح التالي مباشرة
+  const resetInput = (ok) => {
+    if (!el) return;
+    el.value = '';
+    el.focus();
+    el.style.borderColor = ok ? '#10b981' : '#ef4444';
+    if (ok) el.style.background = '#f0fdf4';
+    setTimeout(() => { el.style.borderColor = ''; el.style.background = ''; }, 700);
+  };
 
   if (!item) {
-    showToast('❌ لا توجد مادة بـ: ' + code, 'error');
-    if (el) { el.style.borderColor = '#ef4444'; setTimeout(() => { el.style.borderColor = ''; el.value = ''; }, 1200); }
+    // باركود غير مسجل — لا يُضاف أي سطر للفاتورة
+    showToast(page === 'sale' ? 'باركود غير مسجل' : ('❌ لا توجد مادة بـ: ' + code), 'error');
+    resetInput(false);
     return;
   }
 
@@ -4809,12 +4823,8 @@ function handleBarcodeScan(page, value) {
     renderPurchaseLines(); renderPurchaseTotal();
   }
 
-  // تأثير بصري على الحقل عند النجاح
-  if (el) {
-    el.style.borderColor = '#10b981';
-    el.style.background = '#f0fdf4';
-    setTimeout(() => { el.style.borderColor = ''; el.style.background = ''; el.value = ''; el.focus(); }, 800);
-  }
+  // نجاح — تفريغ فوري مع الحفاظ على التركيز
+  resetInput(true);
 }
 
 // تحديث الـ datalist للباركود ليشمل الاسم والكود
