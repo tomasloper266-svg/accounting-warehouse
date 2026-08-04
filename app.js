@@ -1720,9 +1720,13 @@ function savePurchaseInvoice() {
 // ============================================================
 function renderItems() {
   const inv = calcInventory();
-  const search = document.getElementById('items-search')?.value?.toLowerCase()||'';
+  const search = document.getElementById('items-search')?.value?.toLowerCase().trim()||'';
   const filtered = db.items.filter(item =>
-    item.name.toLowerCase().includes(search)||item.id.toLowerCase().includes(search)||item.type.toLowerCase().includes(search)
+    !search ||
+    item.name.toLowerCase().includes(search) ||
+    (item.id||'').toLowerCase().includes(search) ||
+    (item.barcode||'').toLowerCase().includes(search) ||
+    (item.type||'').toLowerCase().includes(search)
   );
   const tbody = document.getElementById('items-tbody');
   tbody.innerHTML = filtered.map(item => {
