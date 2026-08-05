@@ -229,6 +229,38 @@
     </button>
   </div>
 
+  <!-- Global classic icon toolbar: visual-only quick-access row (Vista/XP style).
+       No functions wired yet — each button is inert (onclick returns false) and
+       only shows an Arabic tooltip via the title attribute. Functions will be
+       linked one-by-one in a later pass. Does not alter global-topbar-actions,
+       the sidebar, or navigate() — purely additive. -->
+  <div class="global-icon-toolbar" role="toolbar" aria-label="شريط الأدوات السريع">
+    <button type="button" class="global-icon-toolbar__btn" title="الآلة الحاسبة" aria-label="الآلة الحاسبة" onclick="return false;">
+      <img src="assets/icons/toolbar/calculator.png" alt="">
+    </button>
+    <button type="button" class="global-icon-toolbar__btn" title="فتح صنف جديد" aria-label="فتح صنف جديد" onclick="return false;">
+      <img src="assets/icons/toolbar/add-item.png" alt="">
+    </button>
+    <button type="button" class="global-icon-toolbar__btn" title="إدخال فواتير" aria-label="إدخال فواتير" onclick="return false;">
+      <img src="assets/icons/toolbar/invoice-entry.png" alt="">
+    </button>
+    <button type="button" class="global-icon-toolbar__btn" title="حركة مادة" aria-label="حركة مادة" onclick="return false;">
+      <img src="assets/icons/toolbar/material-movement.png" alt="">
+    </button>
+    <button type="button" class="global-icon-toolbar__btn" title="جرد مستودع" aria-label="جرد مستودع" onclick="return false;">
+      <img src="assets/icons/toolbar/warehouse-audit.png" alt="">
+    </button>
+    <button type="button" class="global-icon-toolbar__btn" title="دليل الحسابات" aria-label="دليل الحسابات" onclick="return false;">
+      <img src="assets/icons/toolbar/chart-of-accounts.png" alt="">
+    </button>
+    <button type="button" class="global-icon-toolbar__btn" title="كشف حساب" aria-label="كشف حساب" onclick="return false;">
+      <img src="assets/icons/toolbar/account-statement.png" alt="">
+    </button>
+    <button type="button" class="global-icon-toolbar__btn" title="أرصدة البداية" aria-label="أرصدة البداية" onclick="return false;">
+      <img src="assets/icons/toolbar/opening-balances.png" alt="">
+    </button>
+  </div>
+
   <!-- ═══════════════════════════════════
        SIDEBAR
   ═══════════════════════════════════ -->
