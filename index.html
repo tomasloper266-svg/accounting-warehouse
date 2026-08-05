@@ -261,27 +261,7 @@
     </button>
   </div>
 
-  <!-- Pin the icon toolbar flush (zero gap) under global-topbar-actions, on every
-       page and viewport size. The top bar's real height depends on font/padding
-       that can vary (mobile breakpoint, text reflow), so it is measured live via
-       getBoundingClientRect instead of a hardcoded CSS offset. Purely additive:
-       touches only the toolbar's top / body's padding-top, nothing else. -->
-  <script>
-  (function () {
-    function alignGlobalIconToolbar() {
-      var topbar = document.querySelector('.global-topbar-actions');
-      var toolbar = document.querySelector('.global-icon-toolbar');
-      if (!topbar || !toolbar) return;
-      var top = Math.round(topbar.getBoundingClientRect().bottom);
-      toolbar.style.top = top + 'px';
-      document.body.style.paddingTop = (top + toolbar.offsetHeight) + 'px';
-    }
-    alignGlobalIconToolbar();
-    document.addEventListener('DOMContentLoaded', alignGlobalIconToolbar);
-    window.addEventListener('load', alignGlobalIconToolbar);
-    window.addEventListener('resize', alignGlobalIconToolbar);
-  })();
-  </script>
+
 
   <!-- ═══════════════════════════════════
        SIDEBAR

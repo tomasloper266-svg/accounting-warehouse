@@ -1880,29 +1880,29 @@ body[data-page="dashboard"] #global-search-bar { display: none !important; }
 
 /* ══════════════════════════════════════════════════════════════════
    GLOBAL CLASSIC ICON TOOLBAR (visual only — no functions wired yet)
-   A dedicated full-width strip directly under the existing top bar,
-   holding 8 uniform Vista/XP-style icon buttons. Purely additive: it
-   does not replace or restyle global-topbar-actions, the sidebar, or
-   the app-banner title — it only reserves its own band above them via
-   body's padding-top so nothing overlaps.
+   A compact group of 8 uniform Vista/XP-style icon buttons embedded
+   INSIDE the top bar band itself — pinned to the leading (left) edge,
+   vertically centred against the Home/Settings actions on the opposite
+   side. It is NOT a separate full-width strip below the bar, and it
+   reserves NO body padding: content flows exactly as it did before,
+   the icons simply sit in the empty leading margin of the top band.
 ══════════════════════════════════════════════════════════════════ */
-body { padding-top: 132px; }
-
 .global-icon-toolbar {
+  /* fixed so it stays pinned in the top band on scroll, mirroring
+     .global-topbar-actions on the trailing side. Width hugs its icons
+     only (inline-flex, no stretch) — never a full-width row. */
   position: fixed;
-  top: 72px;
-  left: 0;
-  right: 0;
+  top: 18px;
+  left: calc(var(--sidebar-w) + 18px);
   z-index: 245;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  height: 54px;
-  padding: 0 16px;
+  gap: 6px;
+  height: 40px;
+  padding: 4px 8px;
   background: linear-gradient(180deg, #f7f2e4 0%, #e7dcc0 100%);
-  border-bottom: 1px solid #c9a24d;
+  border: 1px solid #c9a24d;
+  border-radius: 8px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 3px 10px rgba(13,20,68,.28);
 }
 
@@ -1911,19 +1911,19 @@ body { padding-top: 132px; }
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 40px;
-  height: 40px;
-  padding: 3px;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
   background: linear-gradient(180deg, #ffffff 0%, #dde8f3 55%, #c3d6ea 100%);
   border: 1px solid var(--steel-line);
-  border-radius: 6px;
+  border-radius: 5px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.85), 0 2px 4px rgba(13,20,68,.3);
   cursor: pointer;
   transition: filter .15s ease, transform .12s ease, box-shadow .15s ease;
 }
 .global-icon-toolbar__btn img {
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
   pointer-events: none;
 }
@@ -1939,12 +1939,11 @@ body { padding-top: 132px; }
 }
 
 @media (max-width: 700px) {
-  body { padding-top: 112px; }
-  .global-icon-toolbar { top: 58px; height: 46px; gap: 8px; padding: 0 8px; }
-  .global-icon-toolbar__btn { width: 32px; height: 32px; }
-  .global-icon-toolbar__btn img { width: 24px; height: 24px; }
+  .global-icon-toolbar { top: 12px; left: calc(var(--sidebar-w) + 10px); gap: 4px; height: 36px; padding: 3px 6px; }
+  .global-icon-toolbar__btn { width: 26px; height: 26px; }
+  .global-icon-toolbar__btn img { width: 20px; height: 20px; }
 }
 
 @media (max-width: 420px) {
-  .global-icon-toolbar { gap: 5px; }
+  .global-icon-toolbar { gap: 3px; }
 }
