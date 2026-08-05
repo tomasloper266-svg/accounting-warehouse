@@ -1826,15 +1826,23 @@ thead th, .table thead th, .table-head, [class*="table"] thead th {
 body[data-page="dashboard"] #global-search-bar { display: none !important; }
 
 /* ══════════════════════════════════════════════════════════════════
-   GLOBAL SETTINGS BUTTON — fixed top-right entry point to page-settings.
+   GLOBAL TOP-BAR ACTIONS — fixed top-right entry points (Home, Settings).
    Independent of the sidebar/menu; stays visible on every page (including
    the dashboard, where most in-page content is hidden by the mockup skin).
+   Grouped in a flex row so the pill buttons keep a clean, fixed gap no
+   matter how their label text width changes.
 ══════════════════════════════════════════════════════════════════ */
-.global-settings-btn {
+.global-topbar-actions {
   position: absolute;
   top: 18px;
   right: 22px;
   z-index: 250;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.global-settings-btn,
+.global-home-btn {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1851,11 +1859,17 @@ body[data-page="dashboard"] #global-search-bar { display: none !important; }
   cursor: pointer;
   transition: filter .15s ease, transform .12s ease;
 }
-.global-settings-btn svg { flex: none; }
-.global-settings-btn:hover { filter: brightness(1.08); transform: translateY(-2px); }
-.global-settings-btn:active { transform: translateY(0); filter: brightness(.95); }
+.global-settings-btn svg,
+.global-home-btn svg { flex: none; }
+.global-settings-btn:hover,
+.global-home-btn:hover { filter: brightness(1.08); transform: translateY(-2px); }
+.global-settings-btn:active,
+.global-home-btn:active { transform: translateY(0); filter: brightness(.95); }
 
 @media (max-width: 700px) {
-  .global-settings-btn { padding: 11px; border-radius: 50%; top: 12px; right: 12px; }
-  .global-settings-btn .global-settings-label { display: none; }
+  .global-topbar-actions { top: 12px; right: 12px; gap: 8px; }
+  .global-settings-btn,
+  .global-home-btn { padding: 11px; border-radius: 50%; }
+  .global-settings-btn .global-settings-label,
+  .global-home-btn .global-home-label { display: none; }
 }
