@@ -1833,7 +1833,11 @@ body[data-page="dashboard"] #global-search-bar { display: none !important; }
    matter how their label text width changes.
 ══════════════════════════════════════════════════════════════════ */
 .global-topbar-actions {
-  position: absolute;
+  /* fixed (not absolute) so it stays pinned to the viewport on scroll,
+     matching the sidebar and .global-icon-toolbar below it. Its actual
+     rendered height/bottom edge is read by JS (see index.html) to place
+     .global-icon-toolbar flush underneath with zero gap. */
+  position: fixed;
   top: 18px;
   right: 22px;
   z-index: 250;
