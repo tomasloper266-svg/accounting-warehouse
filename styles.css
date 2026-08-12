@@ -1823,10 +1823,10 @@ thead th, .table thead th, .table-head, [class*="table"] thead th {
   padding: 0 !important;
 }
 #page-dashboard > * { display: none !important; }
-body[data-page="dashboard"] #global-search-bar { display: none !important; }
+body[data-route="dashboard"] #global-search-bar { display: none !important; }
 
 /* ── Header banner is homepage-only: hide it on every page except the dashboard ── */
-body:not([data-page="dashboard"]) .app-banner { display: none !important; }
+body:not([data-route="dashboard"]) .app-banner { display: none !important; }
 
 /* ══════════════════════════════════════════════════════════════════
    GLOBAL TOP-BAR ACTIONS — Home / Settings entry points, rendered as the

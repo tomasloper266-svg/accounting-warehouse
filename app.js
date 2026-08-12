@@ -655,13 +655,18 @@ let currentPage = 'dashboard';
 
 function navigate(page) {
   currentPage = page;
-  document.body.setAttribute('data-page', page);
+  // Route state lives on <body data-route>, deliberately distinct from the
+  // .nav-item[data-page] attribute below — both used to be named "data-page",
+  // so document.querySelector('[data-page="x"]') matched <body> itself
+  // (document order puts the ancestor before its descendants), silently
+  // breaking sidebar active-highlighting on every route change.
+  document.body.setAttribute('data-route', page);
   pages.forEach(p => {
     document.getElementById('page-'+p)?.classList.add('hidden');
-    document.querySelector(`[data-page="${p}"]`)?.classList.remove('active');
+    document.querySelector(`.nav-item[data-page="${p}"]`)?.classList.remove('active');
   });
   document.getElementById('page-'+page)?.classList.remove('hidden');
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
   render(page);
 }
 
