@@ -217,18 +217,6 @@
 
 <div class="layout">
 
-  <!-- Global top-bar actions: Home (dashboard) + Settings entry points — fixed, visible on every page -->
-  <div class="global-topbar-actions">
-    <button type="button" class="global-settings-btn" onclick="navigate('settings')" title="الإعدادات" aria-label="الإعدادات">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span class="global-settings-label">الإعدادات</span>
-    </button>
-    <button type="button" class="global-home-btn" onclick="navigate('dashboard')" title="الرئيسية" aria-label="الرئيسية">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
-      <span class="global-home-label">الرئيسية</span>
-    </button>
-  </div>
-
   <!-- Global classic icon toolbar: visual-only quick-access row (Vista/XP style).
        No functions wired yet — each button is inert (onclick returns false) and
        only shows an Arabic tooltip via the title attribute. Functions will be
@@ -345,6 +333,18 @@
        MAIN CONTENT
   ═══════════════════════════════════ -->
   <main class="main">
+    <!-- Global top-bar actions: Home (dashboard) + Settings entry points — normal
+         in-flow element (not fixed), visible on every page, scrolls with content -->
+    <div class="global-topbar-actions">
+      <button type="button" class="global-settings-btn" onclick="navigate('settings')" title="الإعدادات" aria-label="الإعدادات">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="global-settings-label">الإعدادات</span>
+      </button>
+      <button type="button" class="global-home-btn" onclick="navigate('dashboard')" title="الرئيسية" aria-label="الرئيسية">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+        <span class="global-home-label">الرئيسية</span>
+      </button>
+    </div>
     <!-- Shared header banner (mockup) -->
     <div class="app-banner"><h1>النظام الرئيسي لإدارة المبيعات والمخازن</h1></div>
     <!-- ═══════════════════════════════════

@@ -1829,24 +1829,22 @@ body[data-page="dashboard"] #global-search-bar { display: none !important; }
 body:not([data-page="dashboard"]) .app-banner { display: none !important; }
 
 /* ══════════════════════════════════════════════════════════════════
-   GLOBAL TOP-BAR ACTIONS — fixed top-right entry points (Home, Settings).
-   Independent of the sidebar/menu; stays visible on every page (including
-   the dashboard, where most in-page content is hidden by the mockup skin).
-   Grouped in a flex row so the pill buttons keep a clean, fixed gap no
-   matter how their label text width changes.
+   GLOBAL TOP-BAR ACTIONS — Home / Settings entry points, rendered as the
+   first element inside <main> so they scroll with the page (not fixed).
+   Visible on every page (including the dashboard, where most in-page
+   content is hidden by the mockup skin). Grouped in a flex row, right-
+   aligned, so the pill buttons keep a clean, fixed gap no matter how
+   their label text width changes.
 ══════════════════════════════════════════════════════════════════ */
 .global-topbar-actions {
-  /* fixed (not absolute) so it stays pinned to the viewport on scroll,
-     matching the sidebar and .global-icon-toolbar below it. Its actual
-     rendered height/bottom edge is read by JS (see index.html) to place
-     .global-icon-toolbar flush underneath with zero gap. */
-  position: fixed;
-  top: 18px;
-  right: 22px;
-  z-index: 250;
+  /* Normal in-flow element (not fixed/sticky): sits at the top of <main>
+     and scrolls away with the rest of the page content like any other
+     element, on every page. */
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  margin: 0 0 16px;
 }
 .global-settings-btn,
 .global-home-btn {
@@ -1874,7 +1872,7 @@ body:not([data-page="dashboard"]) .app-banner { display: none !important; }
 .global-home-btn:active { transform: translateY(0); filter: brightness(.95); }
 
 @media (max-width: 700px) {
-  .global-topbar-actions { top: 12px; right: 12px; gap: 8px; }
+  .global-topbar-actions { gap: 8px; }
   .global-settings-btn,
   .global-home-btn { padding: 11px; border-radius: 50%; }
   .global-settings-btn .global-settings-label,
@@ -1891,9 +1889,9 @@ body:not([data-page="dashboard"]) .app-banner { display: none !important; }
    the icons simply sit in the empty leading margin of the top band.
 ══════════════════════════════════════════════════════════════════ */
 .global-icon-toolbar {
-  /* fixed so it stays pinned in the top band on scroll, mirroring
-     .global-topbar-actions on the trailing side. Width hugs its icons
-     only (inline-flex, no stretch) — never a full-width row. */
+  /* fixed so it stays pinned in the top band on scroll (unlike
+     .global-topbar-actions, which now scrolls with the page). Width
+     hugs its icons only (inline-flex, no stretch) — never a full-width row. */
   position: fixed;
   top: 18px;
   left: calc(var(--sidebar-w) + 18px);
