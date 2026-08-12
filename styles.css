@@ -1828,6 +1828,9 @@ body[data-route="dashboard"] #global-search-bar { display: none !important; }
 /* ── Header banner is homepage-only: hide it on every page except the dashboard ── */
 body:not([data-route="dashboard"]) .app-banner { display: none !important; }
 
+/* ── Global icon toolbar is homepage-only: hide it on every page except the dashboard ── */
+body:not([data-route="dashboard"]) .global-icon-toolbar { display: none !important; }
+
 /* ══════════════════════════════════════════════════════════════════
    GLOBAL TOP-BAR ACTIONS — Home / Settings entry points, rendered as the
    first element inside <main> so they scroll with the page (not fixed).
