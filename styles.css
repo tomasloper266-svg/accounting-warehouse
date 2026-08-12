@@ -1839,10 +1839,15 @@ body:not([data-page="dashboard"]) .app-banner { display: none !important; }
 .global-topbar-actions {
   /* Normal in-flow element (not fixed/sticky): sits at the top of <main>
      and scrolls away with the rest of the page content like any other
-     element, on every page. */
+     element, on every page.
+     justify-content: flex-start (NOT flex-end) — the document is dir="rtl",
+     so flex-start is the *right* edge (matching the buttons' original
+     fixed right:22px position) while flex-end is the *left* edge, which
+     sits directly under the fixed .global-icon-toolbar and gets fully
+     painted over by it (buttons were invisible, not just non-fixed). */
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 12px;
   margin: 0 0 16px;
 }
