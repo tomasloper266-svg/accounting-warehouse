@@ -7365,3 +7365,49 @@ function renderGlobalSearch(q) {
 
   results.innerHTML = html;
 }
+
+// ============================================================
+// الآلة الحاسبة (Toolbar Calculator)
+// ============================================================
+let calcExpr = '';
+function openCalculator() {
+  calcExpr = '';
+  const disp = document.getElementById('calc-display');
+  if (disp) disp.value = '0';
+  const modal = document.getElementById('calculator-modal');
+  if (modal) { modal.classList.remove('hidden'); modal.style.display = 'flex'; }
+}
+function closeCalculator() {
+  const modal = document.getElementById('calculator-modal');
+  if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+}
+function calcInput(val) {
+  const disp = document.getElementById('calc-display');
+  if (!disp) return;
+  calcExpr += val;
+  disp.value = calcExpr.replace(/\*/g, '×').replace(/\//g, '÷');
+}
+function calcClear() {
+  calcExpr = '';
+  const disp = document.getElementById('calc-display');
+  if (disp) disp.value = '0';
+}
+function calcBackspace() {
+  calcExpr = calcExpr.slice(0, -1);
+  const disp = document.getElementById('calc-display');
+  if (disp) disp.value = calcExpr.length ? calcExpr.replace(/\*/g, '×').replace(/\//g, '÷') : '0';
+}
+function calcEquals() {
+  const disp = document.getElementById('calc-display');
+  if (!disp || !calcExpr) return;
+  try {
+    if (!/^[0-9+\-*/.\s]+$/.test(calcExpr)) throw new Error('invalid');
+    const result = Function('"use strict"; return (' + calcExpr + ')')();
+    if (!isFinite(result)) throw new Error('invalid');
+    disp.value = String(Math.round(result * 1e8) / 1e8);
+    calcExpr = disp.value;
+  } catch (e) {
+    disp.value = 'خطأ';
+    calcExpr = '';
+  }
+}

@@ -223,7 +223,7 @@
        linked one-by-one in a later pass. Does not alter global-topbar-actions,
        the sidebar, or navigate() — purely additive. -->
   <div class="global-icon-toolbar" role="toolbar" aria-label="شريط الأدوات السريع">
-    <button type="button" class="global-icon-toolbar__btn" title="الآلة الحاسبة" aria-label="الآلة الحاسبة" onclick="return false;">
+    <button type="button" class="global-icon-toolbar__btn" title="الآلة الحاسبة" aria-label="الآلة الحاسبة" onclick="openCalculator()">
       <img src="assets/icons/toolbar/calculator.png" alt="">
     </button>
     <button type="button" class="global-icon-toolbar__btn" title="فتح صنف جديد" aria-label="فتح صنف جديد" onclick="navigate('items'); addNewItem();">
@@ -2290,6 +2290,48 @@
           <thead><tr><th>التاريخ</th><th>نوع الحركة</th><th>المبلغ</th><th>المرجع</th></tr></thead>
           <tbody id="ca-credit-tbody"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CALCULATOR MODAL (الآلة الحاسبة) ═══ -->
+<div class="modal-overlay hidden" id="calculator-modal" style="align-items:center;justify-content:center;">
+  <div class="detail-modal" style="width:320px;max-width:92vw;">
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:20px;">🧮</span>
+        <div>
+          <div style="font-size:16px;font-weight:700;">الآلة الحاسبة</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeCalculator()">✕</button>
+    </div>
+    <div style="padding:8px 0 4px;">
+      <input type="text" id="calc-display" class="input" readonly value="0" style="width:100%;text-align:left;font-size:26px;font-weight:700;padding:14px 12px;margin-bottom:12px;background:var(--bg-hover);">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+        <button class="btn btn-secondary" onclick="calcClear()" style="grid-column:span 2;">C</button>
+        <button class="btn btn-secondary" onclick="calcBackspace()">⌫</button>
+        <button class="btn btn-secondary" onclick="calcInput('/')">÷</button>
+
+        <button class="btn btn-outline" onclick="calcInput('7')">7</button>
+        <button class="btn btn-outline" onclick="calcInput('8')">8</button>
+        <button class="btn btn-outline" onclick="calcInput('9')">9</button>
+        <button class="btn btn-secondary" onclick="calcInput('*')">×</button>
+
+        <button class="btn btn-outline" onclick="calcInput('4')">4</button>
+        <button class="btn btn-outline" onclick="calcInput('5')">5</button>
+        <button class="btn btn-outline" onclick="calcInput('6')">6</button>
+        <button class="btn btn-secondary" onclick="calcInput('-')">−</button>
+
+        <button class="btn btn-outline" onclick="calcInput('1')">1</button>
+        <button class="btn btn-outline" onclick="calcInput('2')">2</button>
+        <button class="btn btn-outline" onclick="calcInput('3')">3</button>
+        <button class="btn btn-secondary" onclick="calcInput('+')">+</button>
+
+        <button class="btn btn-outline" onclick="calcInput('0')" style="grid-column:span 2;">0</button>
+        <button class="btn btn-outline" onclick="calcInput('.')">.</button>
+        <button class="btn btn-primary" onclick="calcEquals()">=</button>
       </div>
     </div>
   </div>
