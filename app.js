@@ -143,17 +143,800 @@ const DEFAULT_ITEMS = [
   { id:'NUM-046', name:'سيراميك أرضيات 60×60', type:'مواد بناء', unit:'م2', unit2:'كرتون', factor:1.44, cost:10.00, price:12.33, minStock:20 },
 ];
 
+const SEED_DATA = {
+  "items": [
+    {
+      "id": "SUP-001",
+      "name": "مياه معدنية 1.5L",
+      "type": "مشروبات",
+      "unit": "حبة",
+      "unit2": "كرتون",
+      "factor": 12,
+      "cost": 0.3,
+      "price": 0.5,
+      "minStock": 50
+    },
+    {
+      "id": "SUP-002",
+      "name": "عصير برتقال 1L",
+      "type": "مشروبات",
+      "unit": "حبة",
+      "unit2": "كرتون",
+      "factor": 12,
+      "cost": 0.8,
+      "price": 1.2,
+      "minStock": 24
+    },
+    {
+      "id": "SUP-003",
+      "name": "مشروب غازي 330ml",
+      "type": "مشروبات",
+      "unit": "علبة",
+      "unit2": "كرتون",
+      "factor": 24,
+      "cost": 0.4,
+      "price": 0.7,
+      "minStock": 48
+    },
+    {
+      "id": "SUP-004",
+      "name": "حليب طازج 1L",
+      "type": "ألبان وأجبان",
+      "unit": "حبة",
+      "unit2": "كرتون",
+      "factor": 12,
+      "cost": 0.9,
+      "price": 1.3,
+      "minStock": 24
+    },
+    {
+      "id": "SUP-005",
+      "name": "جبنة بيضاء 500g",
+      "type": "ألبان وأجبان",
+      "unit": "حبة",
+      "unit2": "",
+      "factor": 1,
+      "cost": 1.5,
+      "price": 2.2,
+      "minStock": 10
+    },
+    {
+      "id": "SUP-006",
+      "name": "خبز تنور",
+      "type": "مخبوزات",
+      "unit": "ربطة",
+      "unit2": "",
+      "factor": 1,
+      "cost": 0.3,
+      "price": 0.5,
+      "minStock": 20
+    },
+    {
+      "id": "SUP-007",
+      "name": "معجون طماطم 400g",
+      "type": "معلبات",
+      "unit": "علبة",
+      "unit2": "كرتون",
+      "factor": 24,
+      "cost": 0.6,
+      "price": 1,
+      "minStock": 24
+    },
+    {
+      "id": "SUP-008",
+      "name": "تونة معلبة 170g",
+      "type": "معلبات",
+      "unit": "علبة",
+      "unit2": "كرتون",
+      "factor": 24,
+      "cost": 0.8,
+      "price": 1.3,
+      "minStock": 24
+    },
+    {
+      "id": "SUP-009",
+      "name": "شيبس 50g",
+      "type": "وجبات خفيفة",
+      "unit": "حبة",
+      "unit2": "كرتون",
+      "factor": 24,
+      "cost": 0.25,
+      "price": 0.5,
+      "minStock": 48
+    },
+    {
+      "id": "SUP-010",
+      "name": "شوكولاتة 100g",
+      "type": "حلويات",
+      "unit": "حبة",
+      "unit2": "كرتون",
+      "factor": 24,
+      "cost": 0.6,
+      "price": 1,
+      "minStock": 24
+    },
+    {
+      "id": "SUP-011",
+      "name": "سكر 1kg",
+      "type": "بقالة",
+      "unit": "كيس",
+      "unit2": "",
+      "factor": 1,
+      "cost": 0.7,
+      "price": 1.1,
+      "minStock": 20
+    },
+    {
+      "id": "SUP-012",
+      "name": "زيت زيتون 750ml",
+      "type": "زيوت",
+      "unit": "حبة",
+      "unit2": "كرتون",
+      "factor": 12,
+      "cost": 4,
+      "price": 6,
+      "minStock": 12
+    }
+  ],
+  "customers": [
+    {
+      "id": "CUS-001",
+      "name": "أحمد الحلبي",
+      "phone": "0911111111",
+      "address": "دمشق - المزة",
+      "balance": 0,
+      "creditBalance": 0
+    },
+    {
+      "id": "CUS-002",
+      "name": "محمد العبدالله",
+      "phone": "0922222222",
+      "address": "حلب - الفرقان",
+      "balance": 150,
+      "creditBalance": 0
+    },
+    {
+      "id": "CUS-003",
+      "name": "فاطمة الأحمد",
+      "phone": "0933333333",
+      "address": "دمشق - المالكي",
+      "balance": 0,
+      "creditBalance": 0
+    },
+    {
+      "id": "CUS-004",
+      "name": "سارة يوسف",
+      "phone": "0944444444",
+      "address": "اللاذقية - الزراعة",
+      "balance": 75.5,
+      "creditBalance": 0
+    },
+    {
+      "id": "CUS-005",
+      "name": "خالد النجار",
+      "phone": "0955555555",
+      "address": "حمص - الوعر",
+      "balance": 0,
+      "creditBalance": 20
+    },
+    {
+      "id": "CUS-006",
+      "name": "ليلى الحسن",
+      "phone": "0966666666",
+      "address": "دمشق - كفرسوسة",
+      "balance": 0,
+      "creditBalance": 0
+    },
+    {
+      "id": "CUS-007",
+      "name": "عمر الشيخ",
+      "phone": "0977777777",
+      "address": "حلب - الشهباء",
+      "balance": 200,
+      "creditBalance": 0
+    }
+  ],
+  "suppliers": [
+    {
+      "id": "SUP-001",
+      "name": "شركة الشام للتوزيع",
+      "phone": "0311111111",
+      "address": "دمشق - القدم",
+      "balance": 0,
+      "creditBalance": 0
+    },
+    {
+      "id": "SUP-002",
+      "name": "مؤسسة النور التجارية",
+      "phone": "0322222222",
+      "address": "حلب - الشيخ خضر",
+      "balance": 300,
+      "creditBalance": 0
+    },
+    {
+      "id": "SUP-003",
+      "name": "شركة الفرات للمواد الغذائية",
+      "phone": "0333333333",
+      "address": "حمص - الحدادين",
+      "balance": 0,
+      "creditBalance": 0
+    },
+    {
+      "id": "SUP-004",
+      "name": "مجموعة الأمل للاستيراد",
+      "phone": "0344444444",
+      "address": "اللاذقية - الميناء",
+      "balance": 150,
+      "creditBalance": 0
+    },
+    {
+      "id": "SUP-005",
+      "name": "دار السلام للتجارة",
+      "phone": "0355555555",
+      "address": "دمشق - الميدان",
+      "balance": 0,
+      "creditBalance": 0
+    }
+  ],
+  "warehouses": [
+    {
+      "id": "WH-001",
+      "name": "المستودع الرئيسي",
+      "location": "دمشق"
+    },
+    {
+      "id": "WH-002",
+      "name": "مستودع الفرع",
+      "location": "حلب"
+    }
+  ],
+  "transfers": [
+    {
+      "id": "TRF-001",
+      "fromWh": "WH-001",
+      "toWh": "WH-002",
+      "fromName": "المستودع الرئيسي",
+      "toName": "مستودع الفرع",
+      "itemId": "SUP-001",
+      "itemName": "مياه معدنية 1.5L",
+      "qty": 24,
+      "date": "2026-08-25",
+      "note": "تزويد الفرع"
+    },
+    {
+      "id": "TRF-002",
+      "fromWh": "WH-001",
+      "toWh": "WH-002",
+      "fromName": "المستودع الرئيسي",
+      "toName": "مستودع الفرع",
+      "itemId": "SUP-011",
+      "itemName": "سكر 1kg",
+      "qty": 20,
+      "date": "2026-09-02",
+      "note": "تزويد الفرع"
+    },
+    {
+      "id": "TRF-003",
+      "fromWh": "WH-002",
+      "toWh": "WH-001",
+      "fromName": "مستودع الفرع",
+      "toName": "المستودع الرئيسي",
+      "itemId": "SUP-001",
+      "itemName": "مياه معدنية 1.5L",
+      "qty": 6,
+      "date": "2026-09-10",
+      "note": "إعادة توزيع"
+    }
+  ],
+  "salesInvoices": [
+    {
+      "number": "INV-001",
+      "date": "2026-08-20",
+      "time": "10:10",
+      "customerName": "أحمد الحلبي",
+      "lines": [
+        {
+          "itemId": "SUP-001",
+          "qty": 24,
+          "price": 0.5,
+          "total": 12
+        },
+        {
+          "itemId": "SUP-003",
+          "qty": 48,
+          "price": 0.7,
+          "total": 33.6
+        }
+      ],
+      "subtotal": 45.6,
+      "discount": 0,
+      "total": 45.6,
+      "paidAmount": 45.6,
+      "paymentType": "cash",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-002",
+      "date": "2026-08-23",
+      "time": "10:11",
+      "customerName": "محمد العبدالله",
+      "lines": [
+        {
+          "itemId": "SUP-004",
+          "qty": 12,
+          "price": 1.3,
+          "total": 15.6
+        },
+        {
+          "itemId": "SUP-005",
+          "qty": 5,
+          "price": 2.2,
+          "total": 11
+        }
+      ],
+      "subtotal": 26.6,
+      "discount": 0,
+      "total": 26.6,
+      "paidAmount": 10.64,
+      "paymentType": "deferred",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-003",
+      "date": "2026-08-26",
+      "time": "10:12",
+      "customerName": "فاطمة الأحمد",
+      "lines": [
+        {
+          "itemId": "SUP-011",
+          "qty": 10,
+          "price": 1.1,
+          "total": 11
+        }
+      ],
+      "subtotal": 11,
+      "discount": 0,
+      "total": 11,
+      "paidAmount": 11,
+      "paymentType": "cash",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-004",
+      "date": "2026-08-29",
+      "time": "10:13",
+      "customerName": "سارة يوسف",
+      "lines": [
+        {
+          "itemId": "SUP-012",
+          "qty": 6,
+          "price": 6,
+          "total": 36
+        },
+        {
+          "itemId": "SUP-007",
+          "qty": 10,
+          "price": 1,
+          "total": 10
+        }
+      ],
+      "subtotal": 46,
+      "discount": 0,
+      "total": 46,
+      "paidAmount": 18.4,
+      "paymentType": "deferred",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-005",
+      "date": "2026-09-01",
+      "time": "10:14",
+      "customerName": "خالد النجار",
+      "lines": [
+        {
+          "itemId": "SUP-002",
+          "qty": 12,
+          "price": 1.2,
+          "total": 14.4
+        }
+      ],
+      "subtotal": 14.4,
+      "discount": 0,
+      "total": 14.4,
+      "paidAmount": 14.4,
+      "paymentType": "cash",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-006",
+      "date": "2026-09-04",
+      "time": "10:15",
+      "customerName": "ليلى الحسن",
+      "lines": [
+        {
+          "itemId": "SUP-008",
+          "qty": 10,
+          "price": 1.3,
+          "total": 13
+        },
+        {
+          "itemId": "SUP-009",
+          "qty": 20,
+          "price": 0.5,
+          "total": 10
+        }
+      ],
+      "subtotal": 23,
+      "discount": 0,
+      "total": 23,
+      "paidAmount": 23,
+      "paymentType": "cash",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-007",
+      "date": "2026-09-07",
+      "time": "10:16",
+      "customerName": "عمر الشيخ",
+      "lines": [
+        {
+          "itemId": "SUP-010",
+          "qty": 15,
+          "price": 1,
+          "total": 15
+        }
+      ],
+      "subtotal": 15,
+      "discount": 0,
+      "total": 15,
+      "paidAmount": 6,
+      "paymentType": "deferred",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-008",
+      "date": "2026-09-10",
+      "time": "10:17",
+      "customerName": "أحمد الحلبي",
+      "lines": [
+        {
+          "itemId": "SUP-006",
+          "qty": 20,
+          "price": 0.5,
+          "total": 10
+        }
+      ],
+      "subtotal": 10,
+      "discount": 0,
+      "total": 10,
+      "paidAmount": 10,
+      "paymentType": "cash",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-009",
+      "date": "2026-09-13",
+      "time": "10:18",
+      "customerName": "محمد العبدالله",
+      "lines": [
+        {
+          "itemId": "SUP-003",
+          "qty": 24,
+          "price": 0.7,
+          "total": 16.8
+        },
+        {
+          "itemId": "SUP-001",
+          "qty": 12,
+          "price": 0.5,
+          "total": 6
+        }
+      ],
+      "subtotal": 22.8,
+      "discount": 0,
+      "total": 22.8,
+      "paidAmount": 22.8,
+      "paymentType": "cash",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "INV-010",
+      "date": "2026-09-16",
+      "time": "10:19",
+      "customerName": "فاطمة الأحمد",
+      "lines": [
+        {
+          "itemId": "SUP-012",
+          "qty": 4,
+          "price": 6,
+          "total": 24
+        }
+      ],
+      "subtotal": 24,
+      "discount": 0,
+      "total": 24,
+      "paidAmount": 9.6,
+      "paymentType": "deferred",
+      "priceType": "retail",
+      "taxRate": 0,
+      "taxAmount": 0,
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    }
+  ],
+  "purchaseInvoices": [
+    {
+      "number": "PUR-001",
+      "date": "2026-08-19",
+      "time": "09:15",
+      "supplierName": "شركة الشام للتوزيع",
+      "supplierInvoiceNum": "",
+      "lines": [
+        {
+          "itemId": "SUP-001",
+          "qty": 120,
+          "price": 0.3,
+          "total": 36
+        },
+        {
+          "itemId": "SUP-003",
+          "qty": 240,
+          "price": 0.4,
+          "total": 96
+        }
+      ],
+      "subtotal": 132,
+      "discount": 0,
+      "total": 132,
+      "paidAmount": 132,
+      "paymentType": "cash",
+      "shippingCost": 0,
+      "shippingAccount": "",
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "PUR-002",
+      "date": "2026-08-24",
+      "time": "09:16",
+      "supplierName": "مؤسسة النور التجارية",
+      "supplierInvoiceNum": "",
+      "lines": [
+        {
+          "itemId": "SUP-004",
+          "qty": 60,
+          "price": 0.9,
+          "total": 54
+        }
+      ],
+      "subtotal": 54,
+      "discount": 0,
+      "total": 54,
+      "paidAmount": 27,
+      "paymentType": "deferred",
+      "shippingCost": 0,
+      "shippingAccount": "",
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "PUR-003",
+      "date": "2026-08-28",
+      "time": "09:17",
+      "supplierName": "شركة الفرات للمواد الغذائية",
+      "supplierInvoiceNum": "",
+      "lines": [
+        {
+          "itemId": "SUP-011",
+          "qty": 100,
+          "price": 0.7,
+          "total": 70
+        },
+        {
+          "itemId": "SUP-007",
+          "qty": 120,
+          "price": 0.6,
+          "total": 72
+        }
+      ],
+      "subtotal": 142,
+      "discount": 0,
+      "total": 142,
+      "paidAmount": 142,
+      "paymentType": "cash",
+      "shippingCost": 0,
+      "shippingAccount": "",
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "PUR-004",
+      "date": "2026-09-02",
+      "time": "09:18",
+      "supplierName": "مجموعة الأمل للاستيراد",
+      "supplierInvoiceNum": "",
+      "lines": [
+        {
+          "itemId": "SUP-012",
+          "qty": 48,
+          "price": 4,
+          "total": 192
+        }
+      ],
+      "subtotal": 192,
+      "discount": 0,
+      "total": 192,
+      "paidAmount": 96,
+      "paymentType": "deferred",
+      "shippingCost": 0,
+      "shippingAccount": "",
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "PUR-005",
+      "date": "2026-09-06",
+      "time": "09:19",
+      "supplierName": "دار السلام للتجارة",
+      "supplierInvoiceNum": "",
+      "lines": [
+        {
+          "itemId": "SUP-005",
+          "qty": 30,
+          "price": 1.5,
+          "total": 45
+        },
+        {
+          "itemId": "SUP-006",
+          "qty": 80,
+          "price": 0.3,
+          "total": 24
+        },
+        {
+          "itemId": "SUP-002",
+          "qty": 30,
+          "price": 0.8,
+          "total": 24
+        }
+      ],
+      "subtotal": 93,
+      "discount": 0,
+      "total": 93,
+      "paidAmount": 93,
+      "paymentType": "cash",
+      "shippingCost": 0,
+      "shippingAccount": "",
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    },
+    {
+      "number": "PUR-006",
+      "date": "2026-09-11",
+      "time": "09:20",
+      "supplierName": "شركة الشام للتوزيع",
+      "supplierInvoiceNum": "",
+      "lines": [
+        {
+          "itemId": "SUP-009",
+          "qty": 144,
+          "price": 0.25,
+          "total": 36
+        },
+        {
+          "itemId": "SUP-010",
+          "qty": 96,
+          "price": 0.6,
+          "total": 57.6
+        },
+        {
+          "itemId": "SUP-008",
+          "qty": 30,
+          "price": 0.8,
+          "total": 24
+        }
+      ],
+      "subtotal": 117.6,
+      "discount": 0,
+      "total": 117.6,
+      "paidAmount": 117.6,
+      "paymentType": "cash",
+      "shippingCost": 0,
+      "shippingAccount": "",
+      "creditApplied": 0,
+      "note": "",
+      "currency": "USD",
+      "usdToOld": 12000
+    }
+  ],
+  "invoiceCounters": {
+    "sale": 10,
+    "purchase": 6,
+    "returnSale": 0,
+    "returnPurchase": 0,
+    "receipt": 0
+  }
+};
+
 const defaultData = {
   company: { name:'شركتي', address:'', phone:'', email:'', slogan:'نشكر ثقتكم بنا' },
   exchange: { usdToOld: 12000, note: '1 دولار = X ل.س قديمة | 1 ل.س جديدة = 100 ل.س قديمة' },
   // إعدادات عامة للفواتير الآجلة — paymentTermDays: مهلة السداد الافتراضية بالأيام.
   invoiceSettings: { paymentTermDays: 30 },
-  items: JSON.parse(JSON.stringify(DEFAULT_ITEMS)),
-  customers: [],
-  suppliers: [],
-  salesInvoices: [],
-  purchaseInvoices: [],
-  invoiceCounters: { sale:0, purchase:0, returnSale:0, returnPurchase:0, receipt:0 }
+  // بيانات تجريبية مُدمجة — تظهر تلقائياً في أي متصفح جديد بلا إعداد يدوي
+  items: JSON.parse(JSON.stringify(SEED_DATA.items)),
+  customers: JSON.parse(JSON.stringify(SEED_DATA.customers)),
+  suppliers: JSON.parse(JSON.stringify(SEED_DATA.suppliers)),
+  warehouses: JSON.parse(JSON.stringify(SEED_DATA.warehouses)),
+  transfers: JSON.parse(JSON.stringify(SEED_DATA.transfers)),
+  salesInvoices: JSON.parse(JSON.stringify(SEED_DATA.salesInvoices)),
+  purchaseInvoices: JSON.parse(JSON.stringify(SEED_DATA.purchaseInvoices)),
+  invoiceCounters: JSON.parse(JSON.stringify(SEED_DATA.invoiceCounters))
 };
 
 // ============================================================
@@ -199,6 +982,11 @@ async function initDB() {
     } else {
       db = JSON.parse(JSON.stringify(defaultData));
       localStorage.setItem(DB_KEY, JSON.stringify(db));
+      // أول تشغيل على متصفح جديد بلا بيانات محفوظة — تخطي شاشة الإعداد
+      // مباشرة إلى لوحة التحكم المُعبّأة بالبيانات التجريبية المُدمجة
+      if (!localStorage.getItem('business_type')) {
+        localStorage.setItem('business_type', 'supermarket');
+      }
     }
   }
 
