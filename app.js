@@ -7411,3 +7411,15 @@ function calcEquals() {
     calcExpr = '';
   }
 }
+
+// ============================================================
+// إدخال فواتير (Toolbar Invoice Entry chooser)
+// ============================================================
+function openInvoiceEntryMenu() {
+  const modal = document.getElementById('invoice-entry-menu-modal');
+  if (modal) { modal.classList.remove('hidden'); modal.style.display = 'flex'; }
+}
+function closeInvoiceEntryMenu() {
+  const modal = document.getElementById('invoice-entry-menu-modal');
+  if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+}
