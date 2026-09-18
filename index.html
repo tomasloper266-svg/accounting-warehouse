@@ -244,7 +244,7 @@
     <button type="button" class="global-icon-toolbar__btn" title="كشف حساب" aria-label="كشف حساب" onclick="navigate('statements'); switchStatementsTab('account'); document.getElementById('stmt-person-name')?.focus();">
       <img src="assets/icons/toolbar/account-statement.png" alt="">
     </button>
-    <button type="button" class="global-icon-toolbar__btn" title="أرصدة البداية" aria-label="أرصدة البداية" onclick="return false;">
+    <button type="button" class="global-icon-toolbar__btn" title="أرصدة البداية" aria-label="أرصدة البداية" onclick="openOpeningBalance()">
       <img src="assets/icons/toolbar/opening-balances.png" alt="">
     </button>
   </div>
@@ -2379,6 +2379,44 @@
       <button class="btn btn-ghost btn-sm" onclick="closeAccountsSummary()">✕</button>
     </div>
     <div id="accounts-summary-body" style="display:flex;flex-direction:column;gap:14px;padding:10px 0 4px;"></div>
+  </div>
+</div>
+
+<!-- ═══ OPENING BALANCES MODAL (أرصدة البداية) ═══ -->
+<div class="modal-overlay hidden" id="opening-balance-modal" style="align-items:center;justify-content:center;">
+  <div class="detail-modal" style="width:460px;max-width:94vw;">
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:20px;">⚖️</span>
+        <div>
+          <div style="font-size:16px;font-weight:700;">أرصدة البداية</div>
+          <div style="font-size:12px;color:var(--text-muted);">تحديد رصيد افتتاحي لزبون أو مورد</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeOpeningBalance()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;padding:10px 0 4px;">
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">النوع</label>
+        <select id="ob-party-type" class="input" style="width:100%;" onchange="fillOpeningBalanceParties()">
+          <option value="customer">زبون</option>
+          <option value="supplier">مورد</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">الاسم</label>
+        <select id="ob-party-name" class="input" style="width:100%;" onchange="showCurrentOpeningBalance()"></select>
+      </div>
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">الرصيد الحالي المسجّل</label>
+        <div id="ob-current-balance" style="font-size:14px;font-weight:700;color:var(--brand-700);">—</div>
+      </div>
+      <div>
+        <label style="font-size:12.5px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">الرصيد الافتتاحي الجديد</label>
+        <input type="number" id="ob-balance-input" class="input" style="width:100%;" placeholder="0" step="0.01">
+      </div>
+      <button class="btn btn-primary btn-lg" style="width:100%;" onclick="saveOpeningBalance()">💾 حفظ الرصيد الافتتاحي</button>
+    </div>
   </div>
 </div>
 

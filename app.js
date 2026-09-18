@@ -7468,3 +7468,53 @@ function closeAccountsSummary() {
   const modal = document.getElementById('accounts-summary-modal');
   if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
 }
+
+// ============================================================
+// أرصدة البداية (Toolbar Opening Balances)
+// ============================================================
+function fillOpeningBalanceParties() {
+  const type = document.getElementById('ob-party-type')?.value || 'customer';
+  const list = type === 'customer' ? (db.customers || []) : (db.suppliers || []);
+  const sel = document.getElementById('ob-party-name');
+  if (!sel) return;
+  sel.innerHTML = list.length
+    ? list.map(p => `<option value="${p.name}">${p.name}</option>`).join('')
+    : '<option value="">-- لا يوجد سجلات --</option>';
+  showCurrentOpeningBalance();
+}
+function showCurrentOpeningBalance() {
+  const type = document.getElementById('ob-party-type')?.value || 'customer';
+  const name = document.getElementById('ob-party-name')?.value || '';
+  const list = type === 'customer' ? (db.customers || []) : (db.suppliers || []);
+  const party = list.find(p => p.name === name);
+  const cur = document.getElementById('ob-current-balance');
+  const input = document.getElementById('ob-balance-input');
+  const bal = party ? (parseFloat(party.balance) || 0) : 0;
+  if (cur) cur.textContent = fmtUSD(bal);
+  if (input) input.value = bal;
+}
+function openOpeningBalance() {
+  fillOpeningBalanceParties();
+  const modal = document.getElementById('opening-balance-modal');
+  if (modal) { modal.classList.remove('hidden'); modal.style.display = 'flex'; }
+}
+function closeOpeningBalance() {
+  const modal = document.getElementById('opening-balance-modal');
+  if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+}
+function saveOpeningBalance() {
+  const type = document.getElementById('ob-party-type')?.value || 'customer';
+  const name = document.getElementById('ob-party-name')?.value || '';
+  const newBalStr = document.getElementById('ob-balance-input')?.value;
+  if (!name) { if (typeof showToast === 'function') showToast('يرجى اختيار زبون أو مورد', 'error'); else alert('يرجى اختيار زبون أو مورد'); return; }
+  const newBal = parseFloat(newBalStr);
+  if (isNaN(newBal)) { if (typeof showToast === 'function') showToast('يرجى إدخال رصيد صحيح', 'error'); else alert('يرجى إدخال رصيد صحيح'); return; }
+  const list = type === 'customer' ? (db.customers || []) : (db.suppliers || []);
+  const party = list.find(p => p.name === name);
+  if (!party) return;
+  party.balance = roundMoney(newBal);
+  saveData(db);
+  showCurrentOpeningBalance();
+  if (typeof showToast === 'function') showToast('تم حفظ الرصيد الافتتاحي بنجاح', 'success');
+  else alert('تم حفظ الرصيد الافتتاحي بنجاح');
+}
