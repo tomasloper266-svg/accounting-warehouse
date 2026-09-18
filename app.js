@@ -7423,3 +7423,48 @@ function closeInvoiceEntryMenu() {
   const modal = document.getElementById('invoice-entry-menu-modal');
   if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
 }
+
+// ============================================================
+// دليل الحسابات (Toolbar Chart-of-Accounts lightweight summary)
+// ============================================================
+function calcCashBoxBalance() {
+  // نقدية داخلة: فواتير البيع النقدية + كل دفعات الزبائن (النقدية بشكل رئيسي)
+  const cashSales = activeSalesInvoices()
+    .filter(i => (i.paymentType || 'cash') === 'cash')
+    .reduce((s, i) => s + (i.total || 0), 0);
+  const customerPayments = (db.customerPayments || [])
+    .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+  // نقدية خارجة: فواتير الشراء النقدية + كل دفعات الموردين
+  const cashPurchases = activePurchaseInvoices()
+    .filter(i => (i.paymentType || 'cash') === 'cash')
+    .reduce((s, i) => s + (i.total || 0), 0);
+  const supplierPayments = (db.supplierPayments || [])
+    .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+  return roundMoney((cashSales + customerPayments) - (cashPurchases + supplierPayments));
+}
+function openAccountsSummary() {
+  const cashBox = calcCashBoxBalance();
+  const totalCustomerDebt = roundMoney((db.customers || []).reduce((s, c) => s + (parseFloat(c.balance) || 0), 0));
+  const totalSupplierDebt = roundMoney((db.suppliers || []).reduce((s, s2) => s + (parseFloat(s2.balance) || 0), 0));
+  const body = document.getElementById('accounts-summary-body');
+  if (body) {
+    body.innerHTML = [
+      { icon: '💵', label: 'رصيد الصندوق النقدي', val: cashBox, color: cashBox >= 0 ? 'var(--green-700)' : 'var(--red-600)' },
+      { icon: '👥', label: 'إجمالي مديونية الزبائن', val: totalCustomerDebt, color: 'var(--brand-700)' },
+      { icon: '🚚', label: 'إجمالي مديونية الموردين', val: totalSupplierDebt, color: 'var(--brand-700)' }
+    ].map(row => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--bg-hover);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">${row.icon}</span>
+          <span style="font-size:14px;font-weight:700;">${row.label}</span>
+        </div>
+        <span style="font-size:16px;font-weight:800;color:${row.color};">${fmtUSD(row.val)}</span>
+      </div>`).join('');
+  }
+  const modal = document.getElementById('accounts-summary-modal');
+  if (modal) { modal.classList.remove('hidden'); modal.style.display = 'flex'; }
+}
+function closeAccountsSummary() {
+  const modal = document.getElementById('accounts-summary-modal');
+  if (modal) { modal.classList.add('hidden'); modal.style.display = 'none'; }
+}
